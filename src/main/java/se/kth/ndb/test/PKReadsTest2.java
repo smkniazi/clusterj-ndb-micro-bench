@@ -27,7 +27,7 @@ public class PKReadsTest2 {
   @Option(name = "-schema", usage = "DB schemma name. Default is test")
   static private String schema = "test";
   @Option(name = "-dbHost", usage = "com.mysql.clusterj.connectstring. Default is bbc2")
-  static private String dbHost = "bbc2.sics.se";
+  static private String dbHost = "cloud1.sics.se";
   @Option(name = "-batchSize", usage = "Batch size")
   static private int batchSize = 20;
   @Option(name = "-totalOps", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
