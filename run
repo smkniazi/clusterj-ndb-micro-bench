@@ -1,0 +1,2 @@
+#!/bin/bash
+java -XX:+UseG1GC -jar -Xmx100m -XX:MaxDirectMemorySize=1000m target/clusterj-test-1.0-jar-with-dependencies.jar $@
