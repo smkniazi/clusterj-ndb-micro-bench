@@ -73,9 +73,9 @@ public class MicroBenchMain {
 
     writeData();
 
-    System.out.println("Press enter to start execution");
-    System.in.read();
-    startMicroBench();
+//    System.out.println("Press enter to start execution");
+//    System.in.read();
+//    startMicroBench();
 
     System.out.println("Press enter to shut down");
     System.in.read();

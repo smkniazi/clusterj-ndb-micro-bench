@@ -96,12 +96,14 @@ public class Worker implements Runnable {
     Session session = sf.getSession();
     session.currentTransaction().begin();
 
+    System.out.println("Wriring Data for thread no: "+threadId);
     for (int i = 0; i < rowsPerTx; i++) {
         Table row = getTableInstance(session);
         int rowId = rowStartId + i;
         row.setId(rowId);
         row.setPartitionId(getPartitionKey(rowId));
         row.setData(0);
+        System.out.println(row.getId()+"\t\t"+row.getPartitionId()+"\t\t"+row.getData());
         session.makePersistent(row);
     }
     session.currentTransaction().commit();
