@@ -7,11 +7,10 @@ import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-import se.kth.ndb.test.Table.TableDTO;
+import se.kth.ndb.test.Tables.TableDTO;
 
 import java.io.IOException;
 import java.text.NumberFormat;
-import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -28,11 +27,11 @@ public class MicroBenchMain {
   private static LockMode lockMode = LockMode.READ_COMMITTED;
 
   @Option(name = "-microBenchType", usage = "PK, BATCH, PPIS, IS, FTS")
-  private static String MicroBenchTypeStr = "PK";
+  private static String microBenchTypeStr = "PK";
   private static MicroBenchType microBenchType = MicroBenchType.PK;
 
-  @Option(name = "-singlePartitionBatch", usage = "All the operations in a batch will be performed on a single partition")
-  private static boolean singlePartitionBatch = false;
+  @Option(name = "-nonDistributedBatch", usage = "All the operations in a batch will be performed on a single partition")
+  private static boolean nonDistributedBatch = false;
 
   @Option(name = "-distributedBatch", usage = "All the operations in the batch operations will go to different database partition")
   private static boolean distributedBatch = false;
@@ -49,6 +48,9 @@ public class MicroBenchMain {
   @Option(name = "-maxOperationToPerform", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
   static private long maxOperationToPerform = 100;
 
+  @Option(name = "-clientId", usage = "Id of this application. In case of distributed deployment each instance of this benchmark should have a unique id")
+  static private int clientId = 0;
+
   private static AtomicInteger opsCompleted = new AtomicInteger(0);
   private static AtomicInteger successfulOps = new AtomicInteger(0);
   private static AtomicInteger failedOps = new AtomicInteger(0);
@@ -63,21 +65,6 @@ public class MicroBenchMain {
   private Worker[] workers;
   private AtomicLong speed = new AtomicLong(0);
 
-  public static StringBuilder systemStats() {
-    Runtime runtime = Runtime.getRuntime();
-    NumberFormat format = NumberFormat.getInstance();
-    StringBuilder sb = new StringBuilder();
-    long maxMemory = runtime.maxMemory();
-    long allocatedMemory = runtime.totalMemory();
-    long freeMemory = runtime.freeMemory();
-
-    sb.append("\nFree Mem: " + format.format(freeMemory / (1024 * 1024)) + " MB. ");
-    sb.append("Allocated Mem: " + format.format(allocatedMemory / (1024 * 1024)) + " MB. ");
-    sb.append("Max Mem: " + format.format(maxMemory / (1024 * 1024)) + " MB. ");
-    sb.append("Tot Free Mem: " + format.format((freeMemory + (maxMemory - allocatedMemory)) / (1024 * 1024)) + " MB. ");
-    sb.append("Direct Mem: " + sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed()/(1024*1024) +  " MB. \n");
-    return sb;
-  }
 
   public void startApplication(String[] args) throws Exception {
     parseArgs(args);
@@ -110,16 +97,42 @@ public class MicroBenchMain {
         lockMode = LockMode.SHARED;
       } else if (lockModeStr.compareToIgnoreCase("RC") == 0) {
         lockMode = LockMode.READ_COMMITTED;
+      } else {
+        showHelp(parser, true);
       }
+
+      if(microBenchTypeStr.compareToIgnoreCase("PK") == 0){
+        microBenchType = MicroBenchType.PK;
+      } else if(microBenchTypeStr.compareToIgnoreCase("BATCH") == 0){
+        microBenchType = MicroBenchType.BATCH;
+        if ((distributedBatch && nonDistributedBatch) ||
+             (!distributedBatch && !nonDistributedBatch))   {
+          System.out.println("Seletect One. Distributed/Non Distributed batch Operations");
+          showHelp(parser,true);
+        }
+      } else if(microBenchTypeStr.compareToIgnoreCase("PPIS") == 0){
+        microBenchType = MicroBenchType.PPIS;
+      } else if(microBenchTypeStr.compareToIgnoreCase("IS") == 0){
+        microBenchType = MicroBenchType.IS;
+      } else if(microBenchTypeStr.compareToIgnoreCase("FTS") == 0){
+        microBenchType = MicroBenchType.FTS;
+      } else {
+        System.out.println("Wrong bench mark type");
+        showHelp(parser, true);
+      }
+
     } catch (Exception e) {
-      System.err.println(e.getMessage());
-      parser.printUsage(System.err);
-      System.err.println();
-      System.exit(-1);
+      showHelp(parser, true);
     }
 
     if (help) {
-      parser.printUsage(System.err);
+      showHelp(parser, true);
+    }
+  }
+
+  private void showHelp(CmdLineParser parser, boolean kill){
+    parser.printUsage(System.err);
+    if(kill) {
       System.exit(0);
     }
   }
@@ -138,14 +151,26 @@ public class MicroBenchMain {
     sf = ClusterJHelper.getSessionFactory(props);
   }
 
-  public void startWorkers() throws InterruptedException, IOException {
-    workers = new Workers[numThreads];
+  public void createWorkers() throws InterruptedException, IOException {
+    workers = new Worker[numThreads];
     executor = Executors.newFixedThreadPool(numThreads);
+
+    int threadIdStart = (clientId * numThreads);
     for (int i = 0; i < numThreads; i++) {
-      Workers worker = new Workers(i);
+      Worker worker = new Worker((threadIdStart+i), opsCompleted,successfulOps,failedOps,
+              maxOperationToPerform,microBenchType,sf,clientId);
       workers[i] = worker;
     }
+  }
 
+
+  public void writeData() {
+    for (int i = 0; i < numThreads; i++) {
+      workers[i].writeData();
+    }
+  }
+
+  public void startMicroBench() throws InterruptedException, IOException {
     for (int i = 0; i < numThreads; i++) {
       executor.execute(workers[i]);
     }
@@ -155,12 +180,6 @@ public class MicroBenchMain {
       Thread.sleep(1000);
       printMemUsageAndSpeed();
     }
-  }
-
-  private void deleteAllData() throws Exception {
-    Session session = sf.getSession();
-    session.deletePersistentAll(TableDTO.class);
-    session.close();
   }
 
   private void populateDB() throws Exception {
@@ -187,12 +206,28 @@ public class MicroBenchMain {
   private void printMemUsageAndSpeed() {
     long curTime = System.currentTimeMillis();
     if ((curTime - lastOutput) > 1000) {
-      StringBuilder sb = systemStats();
-      sb.append("Speed: " + speed + " ops/sec. Total Successful Ops: " + successfulOps + " Failed Ops: " +
-              failedOps);
+      //StringBuilder sb = systemStats();
+      StringBuilder sb = new StringBuilder("");
+      sb.append("Speed: " + speed + " ops/sec. Successful Ops: " + successfulOps + " Failed Ops: " + failedOps);
       speed.set(0);
       System.out.println(sb.toString());
       lastOutput = curTime;
     }
+  }
+
+  public static StringBuilder systemStats() {
+    Runtime runtime = Runtime.getRuntime();
+    NumberFormat format = NumberFormat.getInstance();
+    StringBuilder sb = new StringBuilder();
+    long maxMemory = runtime.maxMemory();
+    long allocatedMemory = runtime.totalMemory();
+    long freeMemory = runtime.freeMemory();
+
+    sb.append("\nFree Mem: " + format.format(freeMemory / (1024 * 1024)) + " MB. ");
+    sb.append("Allocated Mem: " + format.format(allocatedMemory / (1024 * 1024)) + " MB. ");
+    sb.append("Max Mem: " + format.format(maxMemory / (1024 * 1024)) + " MB. ");
+    sb.append("Tot Free Mem: " + format.format((freeMemory + (maxMemory - allocatedMemory)) / (1024 * 1024)) + " MB. ");
+    sb.append("Direct Mem: " + sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed()/(1024*1024) +  " MB. \n");
+    return sb;
   }
 }
