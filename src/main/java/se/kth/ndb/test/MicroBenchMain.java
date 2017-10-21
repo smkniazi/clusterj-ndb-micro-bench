@@ -1,5 +1,6 @@
 package se.kth.ndb.test;
 
+
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.Session;
@@ -18,32 +19,49 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class PKReadsTest2 {
+public class MicroBenchMain {
   @Option(name = "-numThreads", usage = "Number of threads. Default is 1")
   private static int numThreads = 1;
+
   @Option(name = "-lockMode", usage = "Lock Mode. (RC, S, E). READ_COMMITTED, SHARED, EXCLUSIVE. Default is RC")
   private static String lockModeStr = "RC";
   private static LockMode lockMode = LockMode.READ_COMMITTED;
+
+  @Option(name = "-microBenchType", usage = "PK, BATCH, PPIS, IS, FTS")
+  private static String MicroBenchTypeStr = "PK";
+  private static MicroBenchType microBenchType = MicroBenchType.PK;
+
+  @Option(name = "-singlePartitionBatch", usage = "All the operations in a batch will be performed on a single partition")
+  private static boolean singlePartitionBatch = false;
+
+  @Option(name = "-distributedBatch", usage = "All the operations in the batch operations will go to different database partition")
+  private static boolean distributedBatch = false;
+
   @Option(name = "-schema", usage = "DB schemma name. Default is test")
   static private String schema = "test";
-  @Option(name = "-dbHost", usage = "com.mysql.clusterj.connectstring. Default is bbc2")
-  static private String dbHost = "cloud1.sics.se";
-  @Option(name = "-batchSize", usage = "Batch size")
-  static private int batchSize = 20;
-  @Option(name = "-totalOps", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
-  static private long totalOps = 100;
+
+  @Option(name = "-dbHost", usage = "com.mysql.clusterj.connectstring.")
+  static private String dbHost = "";
+
+  @Option(name = "-numRows", usage = "Number of rows that are read in each transaction")
+  static private int numRows = 1;
+
+  @Option(name = "-maxOperationToPerform", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
+  static private long maxOperationToPerform = 100;
+
   private static AtomicInteger opsCompleted = new AtomicInteger(0);
   private static AtomicInteger successfulOps = new AtomicInteger(0);
   private static AtomicInteger failedOps = new AtomicInteger(0);
   private static long lastOutput = 0;
+
   Random rand = new Random(System.currentTimeMillis());
   ExecutorService executor = null;
   SessionFactory sf = null;
   @Option(name = "-help", usage = "Print usages")
   private boolean help = false;
-  private DBWriter[] workers;
+
+  private Worker[] workers;
   private AtomicLong speed = new AtomicLong(0);
-  // ----
 
   public static StringBuilder systemStats() {
     Runtime runtime = Runtime.getRuntime();
@@ -121,10 +139,10 @@ public class PKReadsTest2 {
   }
 
   public void startWorkers() throws InterruptedException, IOException {
-    workers = new DBWriter[numThreads];
+    workers = new Workers[numThreads];
     executor = Executors.newFixedThreadPool(numThreads);
     for (int i = 0; i < numThreads; i++) {
-      DBWriter worker = new DBWriter(i);
+      Workers worker = new Workers(i);
       workers[i] = worker;
     }
 
@@ -149,7 +167,7 @@ public class PKReadsTest2 {
     Session session = sf.getSession();
     session.currentTransaction().begin();
     for (int j = 0; j < numThreads; j++) {
-      for (int i = 0; i < batchSize; i++) {
+      for (int i = 0; i < numRows; i++) {
         TableDTO row = session.newInstance(TableDTO.class);
         row.setPartitionId(j);
         row.setId(i);
@@ -175,78 +193,6 @@ public class PKReadsTest2 {
       speed.set(0);
       System.out.println(sb.toString());
       lastOutput = curTime;
-    }
-  }
-
-
-  public class DBWriter implements Runnable {
-    final int partitionId;
-
-    public DBWriter(int partitionId) {
-      this.partitionId = partitionId;
-    }
-
-    @Override
-    public void run() {
-
-      Session dbSession = sf.getSession();
-      while (true) {
-        try {
-          dbSession.currentTransaction().begin();
-          Object key[] = new Object[2];
-          key[0] = partitionId;
-          key[1] = new Integer(0);
-
-          dbSession.setPartitionKey(TableDTO.class, key);
-
-          dbSession.setLockMode(lockMode);
-          readData(dbSession, partitionId);
-
-          dbSession.currentTransaction().commit();
-          successfulOps.addAndGet(1);
-          speed.incrementAndGet();
-        } catch (Throwable e) {
-          opsCompleted.incrementAndGet();
-          failedOps.addAndGet(1);
-          e.printStackTrace();
-          dbSession.currentTransaction().rollback();
-        } finally {
-          if (opsCompleted.incrementAndGet() >= totalOps) {
-            break;
-          }
-        }
-      }
-      dbSession.close();
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-      System.out.println("Help I am dying ... ");
-    }
-
-    public void readData(Session session, int partitionId) throws Exception {
-
-      Object keys[][] = new Object[2][batchSize];
-      ArrayList<TableDTO> batch = new ArrayList<TableDTO>(batchSize);
-      for(int i = 0; i < batchSize; i++){
-        TableDTO dto = session.newInstance(TableDTO.class);
-        dto.setPartitionId(partitionId);
-        dto.setId(i);
-        dto.setIntCol1(-100);
-        batch.add(dto);
-      }
-
-      session.load(batch);
-
-      session.flush();
-
-      for(int i = 0; i < batchSize; i++){
-        TableDTO dto  = batch.get(i);
-        if(dto.getIntCol1() != partitionId){
-          System.out.println("Wrong data read. Expecting: "+partitionId+" read: "+dto.getIntCol1());
-        }
-      }
-      session.release(batch);
     }
   }
 }
