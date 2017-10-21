@@ -3,11 +3,9 @@ package se.kth.ndb.test;
 
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.LockMode;
-import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-import se.kth.ndb.test.Tables.TableDTO;
 
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -42,8 +40,8 @@ public class MicroBenchMain {
   @Option(name = "-dbHost", usage = "com.mysql.clusterj.connectstring.")
   static private String dbHost = "";
 
-  @Option(name = "-numRows", usage = "Number of rows that are read in each transaction")
-  static private int numRows = 1;
+  @Option(name = "-rowPerTx", usage = "Number of rows that are read in each transaction")
+  static private int rowsPerTx = 1;
 
   @Option(name = "-maxOperationToPerform", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
   static private long maxOperationToPerform = 100;
@@ -71,13 +69,13 @@ public class MicroBenchMain {
 
     setUpDBConnection();
 
-    deleteAllData();
+    createWorkers();
 
-    populateDB();
+    writeData();
 
     System.out.println("Press enter to start execution");
     System.in.read();
-    startWorkers();
+    startMicroBench();
 
     System.out.println("Press enter to shut down");
     System.in.read();
@@ -156,15 +154,18 @@ public class MicroBenchMain {
     executor = Executors.newFixedThreadPool(numThreads);
 
     int threadIdStart = (clientId * numThreads);
+    int existingRows = (clientId * numThreads * rowsPerTx);
     for (int i = 0; i < numThreads; i++) {
+      int threadId = threadIdStart+i;
+      int rowStartId = existingRows + (threadId * rowsPerTx);
       Worker worker = new Worker((threadIdStart+i), opsCompleted,successfulOps,failedOps,
-              maxOperationToPerform,microBenchType,sf,clientId);
+              maxOperationToPerform,microBenchType,sf, rowStartId, rowsPerTx, distributedBatch);
       workers[i] = worker;
     }
   }
 
 
-  public void writeData() {
+  public void writeData() throws Exception {
     for (int i = 0; i < numThreads; i++) {
       workers[i].writeData();
     }
@@ -180,27 +181,6 @@ public class MicroBenchMain {
       Thread.sleep(1000);
       printMemUsageAndSpeed();
     }
-  }
-
-  private void populateDB() throws Exception {
-    Session session = sf.getSession();
-    session.currentTransaction().begin();
-    for (int j = 0; j < numThreads; j++) {
-      for (int i = 0; i < numRows; i++) {
-        TableDTO row = session.newInstance(TableDTO.class);
-        row.setPartitionId(j);
-        row.setId(i);
-        row.setIntCol1(j);
-        row.setIntCol2(j);
-        row.setStrCol1(j + "");
-        row.setStrCol2(j + "");
-        row.setStrCol3(j + "");
-        session.savePersistent(row);
-      }
-    }
-    session.currentTransaction().commit();
-    session.close();
-    System.out.println("Test data created.");
   }
 
   private void printMemUsageAndSpeed() {

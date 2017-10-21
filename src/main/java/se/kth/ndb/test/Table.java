@@ -9,8 +9,14 @@ import com.mysql.clusterj.annotation.PrimaryKey;
  * Created by salman on 2016-09-02.
  */
 
+public interface Table {
+  int getId();
+  void setId(int id);
 
+  int getPartitionId();
+  void setPartitionId(int partitionId);
 
-
-public interface Table {}
+  int getData();
+  void setData(int data);
+}
 

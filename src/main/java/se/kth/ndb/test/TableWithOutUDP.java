@@ -6,11 +6,11 @@ import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.annotation.PrimaryKey;
 /*
 
-create table `test_table` (`partition_id` int, `id` int, data int, PRIMARY KEY (`partition_id`,`id`)) partition by key (partition_id);
+create table `table2` ( `id` int, `partition_id` int, data int, PRIMARY KEY (`id`));
 
 */
 
-@PersistenceCapable(table = "table1")
+@PersistenceCapable(table = "table2")
 public interface TableWithOutUDP extends Table {
   @PrimaryKey
   @Column(name = "id")
