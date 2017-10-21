@@ -10,8 +10,7 @@
       micro bench
     </p>
   </body>
-</html>
-</richcontent>
+</html></richcontent>
 <node CREATED="1508490746414" HGAP="127" ID="ID_419391890" MODIFIED="1508491391692" POSITION="right" TEXT="PK" VSHIFT="-59">
 <font BOLD="true" NAME="SansSerif" SIZE="12"/>
 <node CREATED="1508490953699" ID="ID_1779465285" MODIFIED="1508494979575" TEXT="Table (id, part, data) PK(id,part)"/>
@@ -50,8 +49,7 @@
       Table (id, pa rt, data)<b><font color="#cc0033">PK ID</font></b>
     </p>
   </body>
-</html>
-</richcontent>
+</html></richcontent>
 <font NAME="SansSerif" SIZE="12"/>
 <node CREATED="1508495134268" ID="ID_1125190294" MODIFIED="1508495271882" TEXT="index on part col">
 <font BOLD="true" NAME="SansSerif" SIZE="12"/>
@@ -76,7 +74,7 @@
 <node CREATED="1508491666907" HGAP="49" ID="ID_63086266" MODIFIED="1508495953415" POSITION="left" TEXT="Global Configuration" VSHIFT="-134">
 <font BOLD="true" NAME="SansSerif" SIZE="12"/>
 <icon BUILTIN="flag-green"/>
-<node CREATED="1508491678499" ID="ID_302196011" MODIFIED="1508494304848" TEXT="Client ID. Domain [0,N]"/>
+<node CREATED="1508491678499" ID="ID_302196011" MODIFIED="1508595949559" TEXT="Client ID. Domain [I,N]"/>
 <node CREATED="1508491683315" ID="ID_567869239" MODIFIED="1508491697215" TEXT="Table ID start = client ID * 1 M"/>
 <node CREATED="1508492148019" ID="ID_1156190524" MODIFIED="1508494243560" TEXT="thread ID Start = (client ID * numThreads)"/>
 <node COLOR="#ff0000" CREATED="1508497059813" HGAP="14" ID="ID_473057784" MODIFIED="1508497309855" TEXT="Table ID Generator" VSHIFT="-11">
@@ -86,6 +84,12 @@
 </node>
 <node CREATED="1508495350165" ID="ID_575422119" MODIFIED="1508495455543" POSITION="left" STYLE="bubble" TEXT="TABLES">
 <node COLOR="#ff0000" CREATED="1508495356132" ID="ID_564434819" MODIFIED="1508495455543" STYLE="fork" TEXT="in all tables that have partition key part of the pk, put part col as first column"/>
+</node>
+<node CREATED="1508596017286" ID="ID_1366089883" MODIFIED="1508596026066" POSITION="left" TEXT="new Global">
+<node CREATED="1508596028663" ID="ID_1552569113" MODIFIED="1508596042191" TEXT="ClientID [0,N]"/>
+<node CREATED="1508596055064" ID="ID_286900615" MODIFIED="1508596242965" TEXT="Number of Rows Created Per client = (number rows * num threads * clinentID)"/>
+<node CREATED="1508596109223" ID="ID_1084005445" MODIFIED="1508596166820" TEXT="threadid = (clientID * numThreads + i)"/>
+<node CREATED="1508596279950" ID="ID_966807532" MODIFIED="1508596302204" TEXT="table row ids = (numbers of rows created + i)"/>
 </node>
 </node>
 </map>
