@@ -77,10 +77,10 @@ public class MicroBenchMain {
 //    System.in.read();
 //    startMicroBench();
 
-    System.out.println("Press enter to shut down");
-    System.in.read();
-    sf.close();
-    executor = null;
+//    System.out.println("Press enter to shut down");
+//    System.in.read();
+//    sf.close();
+//    executor = null;
   }
 
   private void parseArgs(String[] args) {
@@ -101,6 +101,10 @@ public class MicroBenchMain {
 
       if(microBenchTypeStr.compareToIgnoreCase("PK") == 0){
         microBenchType = MicroBenchType.PK;
+        if(rowsPerTx!=1){
+          System.out.println("Invalid number of rows per transaction for PK test. Rows per transaction should be 1");
+          showHelp(parser,true);
+        }
       } else if(microBenchTypeStr.compareToIgnoreCase("BATCH") == 0){
         microBenchType = MicroBenchType.BATCH;
         if ((distributedBatch && nonDistributedBatch) ||
@@ -157,7 +161,7 @@ public class MicroBenchMain {
     int existingRows = (clientId * numThreads * rowsPerTx);
     for (int i = 0; i < numThreads; i++) {
       int threadId = threadIdStart+i;
-      int rowStartId = existingRows + (threadId * rowsPerTx);
+      int rowStartId = existingRows + (i * rowsPerTx);
       Worker worker = new Worker((threadIdStart+i), opsCompleted,successfulOps,failedOps,
               maxOperationToPerform,microBenchType,sf, rowStartId, rowsPerTx, distributedBatch);
       workers[i] = worker;
