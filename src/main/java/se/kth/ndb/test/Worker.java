@@ -69,6 +69,27 @@ public class Worker implements Runnable {
   }
 
   public void readData(Session session, int partitionId) throws Exception {
+    switch (microBenchType) {
+      case PK:
+        pkRead(session);
+        return;
+      case BATCH:
+        batchRead(session);
+        return;
+      case PPIS:
+        ppisRead(session);
+        return;
+      case IS:
+        isRead(session);
+        return;
+      case FTS:
+        ftsRead(session);
+        return;
+      default:
+        throw new IllegalStateException("Micro bench mark not supported");
+    }
+  }
+
 //    Object keys[][] = new Object[2][numRows];
 //    ArrayList<TableDTO> batch = new ArrayList<TableDTO>(numRows);
 //    for(int i = 0; i < numRows; i++){
@@ -90,6 +111,25 @@ public class Worker implements Runnable {
 //      }
 //    }
 //    session.release(batch);
+
+  void pkRead(Session session){
+
+  }
+
+  void batchRead(Session session){
+
+  }
+
+  void ppisRead(Session session){
+
+  }
+
+  void isRead(Session session){
+
+  }
+
+  void ftsRead(Session session){
+
   }
 
   protected void writeData() throws Exception {
