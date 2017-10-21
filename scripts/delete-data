@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+source ./schema.properties
+MYSQL_PWD=$password mysql -u$username  -h$dbHost -P$mysqlPort $db -e "truncate table1"
+MYSQL_PWD=$password mysql -u$username  -h$dbHost -P$mysqlPort $db -e "truncate table2"

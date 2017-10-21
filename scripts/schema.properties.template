@@ -1,5 +1,6 @@
 #!/bin/bash
-dbhost=
+dbHost=
+db=
 username=
 password=
 mysqlPort=
