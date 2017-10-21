@@ -73,9 +73,9 @@ public class MicroBenchMain {
 
     writeData();
 
-//    System.out.println("Press enter to start execution");
-//    System.in.read();
-//    startMicroBench();
+    System.out.println("Press enter to start execution");
+    System.in.read();
+    startMicroBench();
 
 //    System.out.println("Press enter to shut down");
 //    System.in.read();
@@ -101,10 +101,6 @@ public class MicroBenchMain {
 
       if (microBenchTypeStr.compareToIgnoreCase("PK") == 0) {
         microBenchType = MicroBenchType.PK;
-//        if(rowsPerTx!=1){
-//          System.out.println("Invalid number of rows per transaction for PK test. Rows per transaction should be 1");
-//          showHelp(parser,true);
-//        }
       } else if (microBenchTypeStr.compareToIgnoreCase("BATCH") == 0) {
         microBenchType = MicroBenchType.BATCH;
         if ((distributedBatch && nonDistributedBatch) ||

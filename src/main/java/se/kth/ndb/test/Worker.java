@@ -1,9 +1,15 @@
 package se.kth.ndb.test;
 
 import com.mysql.clusterj.LockMode;
+import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
+import com.mysql.clusterj.query.Predicate;
+import com.mysql.clusterj.query.QueryBuilder;
+import com.mysql.clusterj.query.QueryDomainType;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Worker implements Runnable {
@@ -87,28 +93,6 @@ public class Worker implements Runnable {
     }
   }
 
-//    Object keys[][] = new Object[2][numRows];
-//    ArrayList<TableDTO> batch = new ArrayList<TableDTO>(numRows);
-//    for(int i = 0; i < numRows; i++){
-//      TableDTO dto = session.newInstance(TableDTO.class);
-//      dto.setPartitionId(partitionId);
-//      dto.setId(i);
-//      dto.setIntCol1(-100);
-//      batch.add(dto);
-//    }
-//
-//    session.load(batch);
-//
-//    session.flush();
-//
-//    for(int i = 0; i < numRows; i++){
-//      TableDTO dto  = batch.get(i);
-//      if(dto.getIntCol1() != partitionId){
-//        System.out.println("Wrong data read. Expecting: "+partitionId+" read: "+dto.getIntCol1());
-//      }
-//    }
-//    session.release(batch);
-
   void pkRead(Session session) {
     boolean partitionKeyHintSet = false;
     for (int i = 0; i < rowsPerTx; i++) {
@@ -118,28 +102,98 @@ public class Worker implements Runnable {
       key[1] = rowId;
 
       if (!partitionKeyHintSet) {
-        session.setPartitionKey(TableWithUDP.class, key);
+        session.setPartitionKey(getTableClass(), key);
         partitionKeyHintSet = true;
       }
       session.setLockMode(lockMode);
-      session.find(TableWithUDP.class, key);
+      Table row = session.find(TableWithUDP.class, key);
+      if(row == null){
+        throw new IllegalStateException("Read null");
+      }
     }
   }
 
   void batchRead(Session session) {
+    List<Object> batch = new ArrayList<Object>();
+    for (int i = 0; i < rowsPerTx; i++) {
+      int rowId = rowStartId + i;
+      int partKey = getPartitionKey(rowId);
+      Table row = getTableInstance(session);
+      row.setId(rowId);
+      row.setPartitionId(partKey);
+      row.setData(-1);
+      batch.add(row);
+    }
 
+    Object key[] = new Object[2];
+    Table row = (Table)batch.get(0);
+    key[0] = row.getPartitionId();
+    key[1] = row.getId();
+    session.setPartitionKey(getTableClass(), key);
+
+    session.setLockMode(lockMode);
+
+    session.load(batch);
+    session.flush();
+
+    for(Object obj : batch){
+      row = (Table) obj;
+      if(row.getData() == -1 ){
+        throw new IllegalStateException("Wrong data read");
+      }
+    }
   }
 
   void ppisRead(Session session) {
+    QueryBuilder qb = session.getQueryBuilder();
+    QueryDomainType<TableWithUDP> qdty = qb.createQueryDefinition(TableWithUDP.class);
+    Predicate pred1 = qdty.get("partitionId").equal(qdty.param("partitionIdParam"));
+    qdty.where(pred1);
 
+    Query<TableWithUDP> query = session.createQuery(qdty);
+    query.setParameter("partitionIdParam", threadId );
+
+    Object key[] = new Object[2];
+    key[0] = getPartitionKey(rowStartId);
+    key[1] = rowStartId;
+    session.setPartitionKey(getTableClass(), key);
+    session.setLockMode(lockMode);
+    List<TableWithUDP> lists = query.getResultList();
+    if(lists.size() != rowsPerTx){
+      throw new IllegalStateException("Wrong number of rows read. Expecting: "+rowsPerTx+" Got: "+ lists.size());
+    }
   }
 
   void isRead(Session session) {
+    QueryBuilder qb = session.getQueryBuilder();
+    QueryDomainType<TableWithOutUDP> qdty = qb.createQueryDefinition(TableWithOutUDP.class);
+    Predicate pred1 = qdty.get("partitionId").equal(qdty.param("partitionIdParam"));
+    qdty.where(pred1);
 
+    Query<TableWithOutUDP> query = session.createQuery(qdty);
+    query.setParameter("partitionIdParam", threadId );
+
+    session.setLockMode(lockMode);
+    List<TableWithOutUDP> lists = query.getResultList();
+    if(lists.size() != rowsPerTx){
+      throw new IllegalStateException("Wrong number of rows read");
+    }
   }
 
   void ftsRead(Session session) {
+    QueryBuilder qb = session.getQueryBuilder();
+    QueryDomainType<TableWithOutUDP> qdty = qb.createQueryDefinition(TableWithOutUDP.class);
+    Predicate pred1 = qdty.get("data").equal(qdty.param("dataParam"));
+    qdty.where(pred1);
 
+    Query<TableWithOutUDP> query = session.createQuery(qdty);
+    query.setParameter("dataParam", threadId );
+
+    session.setLockMode(lockMode);
+    List<TableWithOutUDP> lists = query.getResultList();
+    if(lists.size() != rowsPerTx){
+      throw new IllegalStateException("Wrong number of rows read");
+    }
   }
 
   protected void writeData() throws Exception {
@@ -150,9 +204,10 @@ public class Worker implements Runnable {
     for (int i = 0; i < rowsPerTx; i++) {
       Table row = getTableInstance(session);
       int rowId = rowStartId + i;
+      int partitionId = getPartitionKey(rowId);
       row.setId(rowId);
-      row.setPartitionId(getPartitionKey(rowId));
-      row.setData(0);
+      row.setPartitionId(partitionId);
+      row.setData(partitionId); // setting the data partition id, used in FTS
       System.out.println(row.getId() + "\t\t" + row.getPartitionId() + "\t\t" + row.getData());
       session.makePersistent(row);
     }
@@ -185,6 +240,17 @@ public class Worker implements Runnable {
         return threadId;
       default:
         throw new IllegalStateException("Micro bench mark not supported");
+    }
+  }
+
+  private Class getTableClass(){
+    if (microBenchType == MicroBenchType.BATCH || microBenchType == MicroBenchType.PK ||
+            microBenchType == MicroBenchType.PPIS) {
+      return TableWithUDP.class;
+    } else if (microBenchType == MicroBenchType.FTS || microBenchType == MicroBenchType.IS) {
+      return TableWithOutUDP.class;
+    } else {
+      throw new IllegalStateException("Micro benchmark type not supported");
     }
   }
 
