@@ -28,10 +28,10 @@ public class MicroBenchMain {
   private static String microBenchTypeStr = "PK";
   private static MicroBenchType microBenchType = MicroBenchType.PK;
 
-  @Option(name = "-nonDistributedBatch", usage = "All the operations in a batch will be performed on a single partition")
+  @Option(name = "-nonDistributedPKOps", usage = "For each thread all the operations in a PK/BATCH test will be performed on a single partition")
   private static boolean nonDistributedBatch = false;
 
-  @Option(name = "-distributedBatch", usage = "All the operations in the batch operations will go to different database partition")
+  @Option(name = "-distributedPKOps", usage = "For each thread all the operations in the PK/BATCH test operations will go to different database partition")
   private static boolean distributedBatch = false;
 
   @Option(name = "-schema", usage = "DB schemma name. Default is test")
@@ -43,15 +43,16 @@ public class MicroBenchMain {
   @Option(name = "-rowPerTx", usage = "Number of rows that are read in each transaction")
   static private int rowsPerTx = 1;
 
-  @Option(name = "-maxOperationToPerform", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
-  static private long maxOperationToPerform = 100;
+  @Option(name = "-maxOperationsToPerform", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
+  static private long maxOperationsToPerform = 100;
 
   @Option(name = "-clientId", usage = "Id of this application. In case of distributed deployment each instance of this benchmark should have a unique id")
   static private int clientId = 0;
 
-  private static AtomicInteger opsCompleted = new AtomicInteger(0);
-  private static AtomicInteger successfulOps = new AtomicInteger(0);
-  private static AtomicInteger failedOps = new AtomicInteger(0);
+  private AtomicInteger opsCompleted = new AtomicInteger(0);
+  private AtomicInteger successfulOps = new AtomicInteger(0);
+  private AtomicInteger failedOps = new AtomicInteger(0);
+  private AtomicInteger speed = new AtomicInteger(0);
   private static long lastOutput = 0;
 
   Random rand = new Random(System.currentTimeMillis());
@@ -61,7 +62,6 @@ public class MicroBenchMain {
   private boolean help = false;
 
   private Worker[] workers;
-  private AtomicLong speed = new AtomicLong(0);
 
 
   public void startApplication(String[] args) throws Exception {
@@ -99,24 +99,24 @@ public class MicroBenchMain {
         showHelp(parser, true);
       }
 
-      if(microBenchTypeStr.compareToIgnoreCase("PK") == 0){
+      if (microBenchTypeStr.compareToIgnoreCase("PK") == 0) {
         microBenchType = MicroBenchType.PK;
-        if(rowsPerTx!=1){
-          System.out.println("Invalid number of rows per transaction for PK test. Rows per transaction should be 1");
-          showHelp(parser,true);
-        }
-      } else if(microBenchTypeStr.compareToIgnoreCase("BATCH") == 0){
+//        if(rowsPerTx!=1){
+//          System.out.println("Invalid number of rows per transaction for PK test. Rows per transaction should be 1");
+//          showHelp(parser,true);
+//        }
+      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH") == 0) {
         microBenchType = MicroBenchType.BATCH;
         if ((distributedBatch && nonDistributedBatch) ||
-             (!distributedBatch && !nonDistributedBatch))   {
+                (!distributedBatch && !nonDistributedBatch)) {
           System.out.println("Seletect One. Distributed/Non Distributed batch Operations");
-          showHelp(parser,true);
+          showHelp(parser, true);
         }
-      } else if(microBenchTypeStr.compareToIgnoreCase("PPIS") == 0){
+      } else if (microBenchTypeStr.compareToIgnoreCase("PPIS") == 0) {
         microBenchType = MicroBenchType.PPIS;
-      } else if(microBenchTypeStr.compareToIgnoreCase("IS") == 0){
+      } else if (microBenchTypeStr.compareToIgnoreCase("IS") == 0) {
         microBenchType = MicroBenchType.IS;
-      } else if(microBenchTypeStr.compareToIgnoreCase("FTS") == 0){
+      } else if (microBenchTypeStr.compareToIgnoreCase("FTS") == 0) {
         microBenchType = MicroBenchType.FTS;
       } else {
         System.out.println("Wrong bench mark type");
@@ -132,9 +132,9 @@ public class MicroBenchMain {
     }
   }
 
-  private void showHelp(CmdLineParser parser, boolean kill){
+  private void showHelp(CmdLineParser parser, boolean kill) {
     parser.printUsage(System.err);
-    if(kill) {
+    if (kill) {
       System.exit(0);
     }
   }
@@ -160,10 +160,10 @@ public class MicroBenchMain {
     int threadIdStart = (clientId * numThreads);
     int existingRows = (clientId * numThreads * rowsPerTx);
     for (int i = 0; i < numThreads; i++) {
-      int threadId = threadIdStart+i;
+      int threadId = threadIdStart + i;
       int rowStartId = existingRows + (i * rowsPerTx);
-      Worker worker = new Worker((threadIdStart+i), opsCompleted,successfulOps,failedOps,
-              maxOperationToPerform,microBenchType,sf, rowStartId, rowsPerTx, distributedBatch);
+      Worker worker = new Worker((threadIdStart + i), opsCompleted, successfulOps, failedOps, speed,
+              maxOperationsToPerform, microBenchType, sf, rowStartId, rowsPerTx, distributedBatch, lockMode);
       workers[i] = worker;
     }
   }
@@ -211,7 +211,7 @@ public class MicroBenchMain {
     sb.append("Allocated Mem: " + format.format(allocatedMemory / (1024 * 1024)) + " MB. ");
     sb.append("Max Mem: " + format.format(maxMemory / (1024 * 1024)) + " MB. ");
     sb.append("Tot Free Mem: " + format.format((freeMemory + (maxMemory - allocatedMemory)) / (1024 * 1024)) + " MB. ");
-    sb.append("Direct Mem: " + sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed()/(1024*1024) +  " MB. \n");
+    sb.append("Direct Mem: " + sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed() / (1024 * 1024) + " MB. \n");
     return sb;
   }
 }

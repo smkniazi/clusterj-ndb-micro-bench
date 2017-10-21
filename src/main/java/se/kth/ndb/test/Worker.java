@@ -1,5 +1,6 @@
 package se.kth.ndb.test;
 
+import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
 
@@ -10,26 +11,30 @@ public class Worker implements Runnable {
   final AtomicInteger opsCompleted;
   final AtomicInteger successfulOps;
   final AtomicInteger failedOps;
-  final long maxOperationToPerform;
+  final AtomicInteger speed;
+  final long maxOperationsToPerform;
   final MicroBenchType microBenchType;
   final SessionFactory sf;
   final int rowStartId;
   final int rowsPerTx;
-  final boolean distributedBatch;
+  final boolean distributedPKOps;
+  final LockMode lockMode;
 
   public Worker(int threadId, AtomicInteger opsCompleted, AtomicInteger successfulOps, AtomicInteger failedOps,
-                long maxOperationToPerform, MicroBenchType microBenchType, SessionFactory sf,
-                int rowStartId, int rowsPerTx, boolean distributedBatch) {
-    this.threadId=threadId;
+                AtomicInteger speed, long maxOperationsToPerform, MicroBenchType microBenchType, SessionFactory sf,
+                int rowStartId, int rowsPerTx, boolean distributedPKOps, LockMode lockMode) {
+    this.threadId = threadId;
     this.opsCompleted = opsCompleted;
     this.successfulOps = successfulOps;
     this.failedOps = failedOps;
-    this.maxOperationToPerform = maxOperationToPerform;
+    this.speed = speed;
+    this.maxOperationsToPerform = maxOperationsToPerform;
     this.microBenchType = microBenchType;
     this.sf = sf;
     this.rowStartId = rowStartId;
     this.rowsPerTx = rowsPerTx;
-    this.distributedBatch = distributedBatch;
+    this.distributedPKOps = distributedPKOps;
+    this.lockMode = lockMode;
   }
 
   @Override
@@ -38,25 +43,17 @@ public class Worker implements Runnable {
     while (true) {
       try {
         dbSession.currentTransaction().begin();
-//        Object key[] = new Object[2];
-//        key[0] = partitionId;
-//        key[1] = new Integer(0);
-//
-//        dbSession.setPartitionKey(TableDTO.class, key);
-//
-//        dbSession.setLockMode(lockMode);
-//        readData(dbSession, partitionId);
-//
-//        dbSession.currentTransaction().commit();
-//        successfulOps.addAndGet(1);
-//        speed.incrementAndGet();
-//      } catch (Throwable e) {
-//        opsCompleted.incrementAndGet();
-//        failedOps.addAndGet(1);
-//        e.printStackTrace();
-//        dbSession.currentTransaction().rollback();
+        readData(dbSession);
+        dbSession.currentTransaction().commit();
+        successfulOps.incrementAndGet();
+        speed.incrementAndGet();
+      } catch (Throwable e) {
+        opsCompleted.incrementAndGet();
+        failedOps.incrementAndGet();
+        e.printStackTrace();
+        dbSession.currentTransaction().rollback();
       } finally {
-        if (opsCompleted.incrementAndGet() >= maxOperationToPerform) {
+        if (opsCompleted.incrementAndGet() >= maxOperationsToPerform) {
           break;
         }
       }
@@ -68,7 +65,7 @@ public class Worker implements Runnable {
   protected void finalize() throws Throwable {
   }
 
-  public void readData(Session session, int partitionId) throws Exception {
+  public void readData(Session session) throws Exception {
     switch (microBenchType) {
       case PK:
         pkRead(session);
@@ -112,23 +109,36 @@ public class Worker implements Runnable {
 //    }
 //    session.release(batch);
 
-  void pkRead(Session session){
+  void pkRead(Session session) {
+    boolean partitionKeyHintSet = false;
+    for (int i = 0; i < rowsPerTx; i++) {
+      int rowId = rowStartId + i;
+      Object key[] = new Object[2];
+      key[0] = getPartitionKey(rowId);
+      key[1] = rowId;
+
+      if (!partitionKeyHintSet) {
+        session.setPartitionKey(TableWithUDP.class, key);
+        partitionKeyHintSet = true;
+      }
+      session.setLockMode(lockMode);
+      session.find(TableWithUDP.class, key);
+    }
+  }
+
+  void batchRead(Session session) {
 
   }
 
-  void batchRead(Session session){
+  void ppisRead(Session session) {
 
   }
 
-  void ppisRead(Session session){
+  void isRead(Session session) {
 
   }
 
-  void isRead(Session session){
-
-  }
-
-  void ftsRead(Session session){
+  void ftsRead(Session session) {
 
   }
 
@@ -136,15 +146,15 @@ public class Worker implements Runnable {
     Session session = sf.getSession();
     session.currentTransaction().begin();
 
-    System.out.println("Wriring Data for thread no: "+threadId);
+    System.out.println("Wriring Data for thread no: " + threadId);
     for (int i = 0; i < rowsPerTx; i++) {
-        Table row = getTableInstance(session);
-        int rowId = rowStartId + i;
-        row.setId(rowId);
-        row.setPartitionId(getPartitionKey(rowId));
-        row.setData(0);
-        System.out.println(row.getId()+"\t\t"+row.getPartitionId()+"\t\t"+row.getData());
-        session.makePersistent(row);
+      Table row = getTableInstance(session);
+      int rowId = rowStartId + i;
+      row.setId(rowId);
+      row.setPartitionId(getPartitionKey(rowId));
+      row.setData(0);
+      System.out.println(row.getId() + "\t\t" + row.getPartitionId() + "\t\t" + row.getData());
+      session.makePersistent(row);
     }
     session.currentTransaction().commit();
     session.close();
@@ -157,13 +167,12 @@ public class Worker implements Runnable {
     session.close();
   }
 
-  private int getPartitionKey(int rowId){
+  private int getPartitionKey(int rowId) {
 
-    switch (microBenchType){
+    switch (microBenchType) {
       case PK:
-        return rowId;
       case BATCH:
-        if(distributedBatch){
+        if (distributedPKOps) {
           return rowId;
         } else {
           return threadId;
@@ -175,17 +184,17 @@ public class Worker implements Runnable {
       case FTS:
         return threadId;
       default:
-        throw  new IllegalStateException("Micro bench mark not supported");
+        throw new IllegalStateException("Micro bench mark not supported");
     }
   }
 
-  private Table getTableInstance(Session session){
-    if(microBenchType == MicroBenchType.BATCH || microBenchType == MicroBenchType.PK ||
-            microBenchType == MicroBenchType.PPIS){
+  private Table getTableInstance(Session session) {
+    if (microBenchType == MicroBenchType.BATCH || microBenchType == MicroBenchType.PK ||
+            microBenchType == MicroBenchType.PPIS) {
       return session.newInstance(TableWithUDP.class);
-    } else if( microBenchType == MicroBenchType.FTS || microBenchType == MicroBenchType.IS){
+    } else if (microBenchType == MicroBenchType.FTS || microBenchType == MicroBenchType.IS) {
       return session.newInstance(TableWithOutUDP.class);
-    } else{
+    } else {
       throw new IllegalStateException("Micro benchmark type not supported");
     }
   }
