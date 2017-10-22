@@ -28,8 +28,8 @@ public class MicroBenchMain {
   private static LockMode lockMode = LockMode.READ_COMMITTED;
 
   @Option(name = "-microBenchType", usage = "PK, BATCH, PPIS, IS, FTS")
-  private static String microBenchTypeStr = "PK";
-  private static MicroBenchType microBenchType = MicroBenchType.PK_ND;
+  private static String microBenchTypeStr = "";
+  private static MicroBenchType microBenchType = null;
 
   @Option(name = "-nonDistributedPKOps", usage = "For each thread all the operations in a PK/BATCH test will be performed on a single partition")
   private static boolean nonDistributedPKOps = false;
