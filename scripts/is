@@ -1,4 +1,5 @@
 #!/bin/bash
 set -e
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source ./setup
-java -Xmx20G  -XX:MaxDirectMemorySize=1000m -jar ../target/clusterj-ndb-micro-benchmark-1.0-jar-with-dependencies.jar -schema $db -dbHost $dbHost -clientId $clientId -rowsPerTx $rowsPerTx -numThreads $numThreads -microBenchType IS  -maxOperationsToPerform $totalOps $skipPrompt
+java -Xmx20G  -XX:MaxDirectMemorySize=1000m -jar $DIR/../target/clusterj-ndb-micro-benchmark-1.0-jar-with-dependencies.jar -schema $db -dbHost $dbHost -clientId $clientId -rowsPerTx $rowsPerTx -numThreads $numThreads -microBenchType IS  -maxOperationsToPerform $totalOps $skipPrompt
