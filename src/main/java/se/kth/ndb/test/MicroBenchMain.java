@@ -55,6 +55,9 @@ public class MicroBenchMain {
   @Option(name = "-createDummyData", usage = "Create dummy data")
   static private boolean createDummyData = false;
 
+  @Option(name = "-skipPrompt", usage = "Do not ask for (Y/N) before starting the bench mark")
+  static private boolean skipPrompt = false;
+
   @Option(name = "-numDummyRows", usage = "Number of dummy rows to create")
   static private int numDummyRows = 1000;
 
@@ -88,8 +91,11 @@ public class MicroBenchMain {
 
     writeData();
 
-    System.out.println("Press enter to start execution");
-    System.in.read();
+    if(!skipPrompt) {
+      System.out.println("Press enter to start execution");
+      System.in.read();
+    }
+
     long startTime = System.currentTimeMillis();
     startMicroBench();
     long totExeTime = (System.currentTimeMillis()-startTime);

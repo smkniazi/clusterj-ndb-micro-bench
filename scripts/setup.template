@@ -8,3 +8,4 @@ clientId=
 rowsPerTx=
 numThreads=
 totalOps=
+skipPrompt=
