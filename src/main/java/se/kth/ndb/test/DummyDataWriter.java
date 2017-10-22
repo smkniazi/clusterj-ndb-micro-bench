@@ -1,16 +1,8 @@
 package se.kth.ndb.test;
 
-import com.mysql.clusterj.LockMode;
-import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
-import com.mysql.clusterj.query.Predicate;
-import com.mysql.clusterj.query.QueryBuilder;
-import com.mysql.clusterj.query.QueryDomainType;
-import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class DummyDataWriter implements Runnable {
@@ -54,16 +46,11 @@ public class DummyDataWriter implements Runnable {
 
 
   protected void writeData(Session session, int id) throws Exception {
-    Table row = session.newInstance(TableWithUDP.class);
+    Table row = session.newInstance(Table.class);
     row.setId(id);
     row.setPartitionId(id);
-    row.setData(id);
-    session.savePersistent(row);
-
-    row = session.newInstance(TableWithOutUDP.class);
-    row.setId(id);
-    row.setPartitionId(id);
-    row.setData(id);
+    row.setData1(id);
+    row.setData2(id);
     session.savePersistent(row);
   }
 }

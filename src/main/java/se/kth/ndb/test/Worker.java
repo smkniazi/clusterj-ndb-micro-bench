@@ -109,11 +109,11 @@ public class Worker implements Runnable {
       key[1] = rowId;
 
       if (!partitionKeyHintSet) {
-        session.setPartitionKey(getTableClass(), key);
+        session.setPartitionKey(Table.class, key);
         partitionKeyHintSet = true;
       }
       session.setLockMode(lockMode);
-      Table row = session.find(TableWithUDP.class, key);
+      Table row = session.find(Table.class, key);
       if(row == null){
         throw new IllegalStateException("Read null");
       }
@@ -128,7 +128,8 @@ public class Worker implements Runnable {
       Table row = getTableInstance(session);
       row.setId(rowId);
       row.setPartitionId(partKey);
-      row.setData(-1);
+      row.setData1(-1);
+      row.setData2(-1);
       batch.add(row);
     }
 
@@ -136,7 +137,7 @@ public class Worker implements Runnable {
     Table row = (Table)batch.get(0);
     key[0] = row.getPartitionId();
     key[1] = row.getId();
-    session.setPartitionKey(getTableClass(), key);
+    session.setPartitionKey(Table.class, key);
 
     session.setLockMode(lockMode);
 
@@ -145,7 +146,7 @@ public class Worker implements Runnable {
 
     for(Object obj : batch){
       row = (Table) obj;
-      if(row.getData() == -1 ){
+      if(row.getData1() == -1 || row.getData2() == -1 ){
         throw new IllegalStateException("Wrong data read");
       }
     }
@@ -153,19 +154,19 @@ public class Worker implements Runnable {
 
   void ppisRead(Session session) {
     QueryBuilder qb = session.getQueryBuilder();
-    QueryDomainType<TableWithUDP> qdty = qb.createQueryDefinition(TableWithUDP.class);
+    QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
     Predicate pred1 = qdty.get("partitionId").equal(qdty.param("partitionIdParam"));
     qdty.where(pred1);
 
-    Query<TableWithUDP> query = session.createQuery(qdty);
+    Query<Table> query = session.createQuery(qdty);
     query.setParameter("partitionIdParam", threadId );
 
     Object key[] = new Object[2];
     key[0] = getPartitionKey(rowStartId);
     key[1] = rowStartId;
-    session.setPartitionKey(getTableClass(), key);
+    session.setPartitionKey(Table.class, key);
     session.setLockMode(lockMode);
-    List<TableWithUDP> lists = query.getResultList();
+    List<Table> lists = query.getResultList();
     if(lists.size() != rowsPerTx){
       throw new IllegalStateException("Wrong number of rows read. Expecting: "+rowsPerTx+" Got: "+ lists.size());
     }
@@ -173,15 +174,15 @@ public class Worker implements Runnable {
 
   void isRead(Session session) {
     QueryBuilder qb = session.getQueryBuilder();
-    QueryDomainType<TableWithOutUDP> qdty = qb.createQueryDefinition(TableWithOutUDP.class);
-    Predicate pred1 = qdty.get("partitionId").equal(qdty.param("partitionIdParam"));
+    QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
+    Predicate pred1 = qdty.get("data1").equal(qdty.param("data1Param"));
     qdty.where(pred1);
 
-    Query<TableWithOutUDP> query = session.createQuery(qdty);
-    query.setParameter("partitionIdParam", threadId );
+    Query<Table> query = session.createQuery(qdty);
+    query.setParameter("data1Param", threadId );
 
     session.setLockMode(lockMode);
-    List<TableWithOutUDP> lists = query.getResultList();
+    List<Table> lists = query.getResultList();
     if(lists.size() != rowsPerTx){
       throw new IllegalStateException("Wrong number of rows read");
     }
@@ -189,15 +190,15 @@ public class Worker implements Runnable {
 
   void ftsRead(Session session) {
     QueryBuilder qb = session.getQueryBuilder();
-    QueryDomainType<TableWithOutUDP> qdty = qb.createQueryDefinition(TableWithOutUDP.class);
-    Predicate pred1 = qdty.get("data").equal(qdty.param("dataParam"));
+    QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
+    Predicate pred1 = qdty.get("data2").equal(qdty.param("data2Param"));
     qdty.where(pred1);
 
-    Query<TableWithOutUDP> query = session.createQuery(qdty);
-    query.setParameter("dataParam", threadId );
+    Query<Table> query = session.createQuery(qdty);
+    query.setParameter("data2Param", threadId );
 
     session.setLockMode(lockMode);
-    List<TableWithOutUDP> lists = query.getResultList();
+    List<Table> lists = query.getResultList();
     if(lists.size() != rowsPerTx){
       throw new IllegalStateException("Wrong number of rows read");
     }
@@ -214,8 +215,9 @@ public class Worker implements Runnable {
       int partitionId = getPartitionKey(rowId);
       row.setId(rowId);
       row.setPartitionId(partitionId);
-      row.setData(partitionId); // setting the data partition id, used in FTS
-      System.out.println(row.getId() + "\t\t" + row.getPartitionId() + "\t\t" + row.getData());
+      row.setData1(threadId); // setting the data partition id, used in FTS
+      row.setData2(threadId); // setting the data partition id, used in FTS
+      System.out.println(row.getId() + "\t\t" + row.getPartitionId() + "\t\t" + row.getData1()+ "\t\t" + row.getData2());
       session.makePersistent(row);
 //      session.savePersistent(row);
     }
@@ -244,28 +246,8 @@ public class Worker implements Runnable {
     }
   }
 
-  private Class getTableClass(){
-    if (microBenchType == MicroBenchType.BATCH || microBenchType == MicroBenchType.PK ||
-            microBenchType == MicroBenchType.PPIS) {
-      return TableWithUDP.class;
-    } else if (microBenchType == MicroBenchType.FTS || microBenchType == MicroBenchType.IS) {
-      return TableWithOutUDP.class;
-    } else {
-      throw new IllegalStateException("Micro benchmark type not supported");
-    }
-  }
-
   private Table getTableInstance(Session session) {
-    if (microBenchType == MicroBenchType.BATCH || microBenchType == MicroBenchType.PK ||
-            microBenchType == MicroBenchType.PPIS) {
-      return session.newInstance(TableWithUDP.class);
-    } else if (microBenchType == MicroBenchType.FTS || microBenchType == MicroBenchType.IS) {
-      return session.newInstance(TableWithOutUDP.class);
-    } else {
-      throw new IllegalStateException("Micro benchmark type not supported");
-    }
+      return session.newInstance(Table.class);
   }
-
-
 }
 
