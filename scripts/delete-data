@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
-source ./setup
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source $DIR/setup
 if [[ $1 = "all" ]] ; then
 	echo "Deleting all data"
 	MYSQL_PWD=$password mysql -u$username  -h$dbHost -P$mysqlPort $db -e "truncate test"
