@@ -261,12 +261,12 @@ public class MicroBenchMain {
     return sb;
   }
 
-  private void redColoredText(String msg) {
+  protected void redColoredText(String msg) {
     System.out.println((char) 27 + "[31m" + msg);
     System.out.print((char) 27 + "[0m");
   }
 
-  public static void blueColoredText(String msg) {
+  protected static void blueColoredText(String msg) {
     System.out.println((char) 27 + "[36m" + msg);
     System.out.print((char) 27 + "[0m");
   }
