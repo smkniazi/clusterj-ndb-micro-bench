@@ -79,6 +79,7 @@ public class MicroBenchMain {
 
     setUpDBConnection();
 
+    System.out.println("Test type "+microBenchType);
     if(createDummyData) {
       writeDummyData();
     }
@@ -141,11 +142,12 @@ public class MicroBenchMain {
                 (!distributedPKOps && !nonDistributedPKOps)) {
           System.out.println("Seletect One. Distributed/Non Distributed batch Operations");
           showHelp(parser, true);
-          if(distributedPKOps) {
-            microBenchType = MicroBenchType.BATCH_D;
-          }else{
-            microBenchType = MicroBenchType.BATCH_ND;
-          }
+        }
+
+        if(distributedPKOps) {
+          microBenchType = MicroBenchType.BATCH_D;
+        }else{
+          microBenchType = MicroBenchType.BATCH_ND;
         }
       } else if (microBenchTypeStr.compareToIgnoreCase("PPIS") == 0) {
         microBenchType = MicroBenchType.PPIS;
@@ -297,7 +299,7 @@ public class MicroBenchMain {
     row.setThreads(numThreads);
     row.setSpeed(avgSpeed);
     row.setLatency(avgLatency);
-    session.savePersistent(row);
+    session.makePersistent(row);
     session.currentTransaction().commit();
   }
 }
