@@ -11,8 +11,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.NumberFormat;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -33,10 +31,10 @@ public class MicroBenchMain {
   private static MicroBenchType microBenchType = MicroBenchType.PK;
 
   @Option(name = "-nonDistributedPKOps", usage = "For each thread all the operations in a PK/BATCH test will be performed on a single partition")
-  private static boolean nonDistributedBatch = false;
+  private static boolean nonDistributedPKOps = false;
 
   @Option(name = "-distributedPKOps", usage = "For each thread all the operations in the PK/BATCH test operations will go to different database partition")
-  private static boolean distributedBatch = false;
+  private static boolean distributedPKOps = false;
 
   @Option(name = "-schema", usage = "DB schemma name. Default is test")
   static private String schema = "test";
@@ -88,6 +86,11 @@ public class MicroBenchMain {
 
     writeData();
 
+
+    String testType = testType();
+    blueColoredText(testType);
+    writeToFile("result.txt", false, testType);
+
     System.out.println("Press enter to start execution");
     System.in.read();
     long startTime = System.currentTimeMillis();
@@ -98,10 +101,14 @@ public class MicroBenchMain {
 
     String msg = "Speed: "+speed+" ops/sec.\t\tAvg Op Latency: "+latency.getMean()/1000000;
     blueColoredText(msg);
-    FileWriter out = new FileWriter("result.txt", false);
+    writeToFile("result.txt", true, msg);
+
+  }
+
+  void writeToFile(String filePath, boolean append, String msg) throws IOException {
+    FileWriter out = new FileWriter(filePath, append);
     out.write(msg + "\n");
     out.close();
-
   }
 
   private void parseArgs(String[] args) {
@@ -124,8 +131,8 @@ public class MicroBenchMain {
         microBenchType = MicroBenchType.PK;
       } else if (microBenchTypeStr.compareToIgnoreCase("BATCH") == 0) {
         microBenchType = MicroBenchType.BATCH;
-        if ((distributedBatch && nonDistributedBatch) ||
-                (!distributedBatch && !nonDistributedBatch)) {
+        if ((distributedPKOps && nonDistributedPKOps) ||
+                (!distributedPKOps && !nonDistributedPKOps)) {
           System.out.println("Seletect One. Distributed/Non Distributed batch Operations");
           showHelp(parser, true);
         }
@@ -208,7 +215,7 @@ public class MicroBenchMain {
       int threadId = threadIdStart + i;
       int rowStartId = existingRows + (i * rowsPerTx);
       Worker worker = new Worker((threadIdStart + i), opsCompleted, successfulOps, failedOps, speed,
-              maxOperationsToPerform, microBenchType, sf, rowStartId, rowsPerTx, distributedBatch, lockMode,
+              maxOperationsToPerform, microBenchType, sf, rowStartId, rowsPerTx, distributedPKOps, lockMode,
               latency);
       workers[i] = worker;
     }
@@ -271,4 +278,29 @@ public class MicroBenchMain {
     System.out.print((char) 27 + "[0m");
   }
 
+  public String testType()  {
+    String message = "";
+    switch (microBenchType) {
+      case PK:
+        String dist = distributedPKOps?"DISTRIBUTED":"NON-DISTRIBUTED";
+        message = dist+" PK Read Test. [partKey, id]";
+        break;
+      case BATCH:
+        dist =distributedPKOps?"DISTRIBUTED":"NON-DISTRIBUTED";
+        message = dist+" BATCH Read Test. [partKey, id]";
+        break;
+      case PPIS:
+        message = "PPIS Read Test. Select * from test where partition_id=?";
+        break;
+      case IS:
+        message = "IS Read Test. Select * from test where data1=?";
+        break;
+      case FTS:
+        message = "FTS Read Test. Select * from test where data1=?";
+        break;
+      default:
+        throw new IllegalStateException("Micro bench mark not supported");
+    }
+    return message;
+  }
 }

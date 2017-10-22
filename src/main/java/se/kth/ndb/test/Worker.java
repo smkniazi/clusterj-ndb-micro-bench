@@ -100,9 +100,8 @@ public class Worker implements Runnable {
     }
   }
 
+
   void pkRead(Session session) {
-    String dist =distributedPKOps?"DISTRIBUTED":"NON-DISTRIBUTED";
-    MicroBenchMain.blueColoredText( dist+" PK Read Test. [partKey, id]");
     boolean partitionKeyHintSet = false;
     for (int i = 0; i < rowsPerTx; i++) {
       int rowId = rowStartId + i;
@@ -123,8 +122,6 @@ public class Worker implements Runnable {
   }
 
   void batchRead(Session session) {
-    String dist =distributedPKOps?"DISTRIBUTED":"NON-DISTRIBUTED";
-    MicroBenchMain.blueColoredText( dist+" BATCH Read Test. [partKey, id]");
     List<Object> batch = new ArrayList<Object>();
     for (int i = 0; i < rowsPerTx; i++) {
       int rowId = rowStartId + i;
@@ -157,7 +154,6 @@ public class Worker implements Runnable {
   }
 
   void ppisRead(Session session) {
-    MicroBenchMain.blueColoredText( "PPIS Read Test. Select * from test where partition_id=?");
     QueryBuilder qb = session.getQueryBuilder();
     QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
     Predicate pred1 = qdty.get("partitionId").equal(qdty.param("partitionIdParam"));
@@ -178,7 +174,6 @@ public class Worker implements Runnable {
   }
 
   void isRead(Session session) {
-    MicroBenchMain.blueColoredText( "PPIS Read Test. Select * from test where data1=?");
     QueryBuilder qb = session.getQueryBuilder();
     QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
     Predicate pred1 = qdty.get("data1").equal(qdty.param("data1Param"));
