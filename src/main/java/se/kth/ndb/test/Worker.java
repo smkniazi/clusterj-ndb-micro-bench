@@ -190,7 +190,6 @@ public class Worker implements Runnable {
   }
 
   void ftsRead(Session session) {
-    MicroBenchMain.blueColoredText( "PPIS Read Test. Select * from test where data2=?");
     QueryBuilder qb = session.getQueryBuilder();
     QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
     Predicate pred1 = qdty.get("data2").equal(qdty.param("data2Param"));
