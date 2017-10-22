@@ -16,6 +16,6 @@ do
 	do
 		pssh -H "$hosts" -l $user "sed -i 's#numThreads=.*#numThreads=$thread#g' $DIR/setup" 
 		echo "bash $DIR/$test " 
-		pssh -H "$hosts" -l $user "bash $DIR/$test " 
+		pssh -H "$hosts" -l $user -i "bash $DIR/$test " 
 	done
 done
