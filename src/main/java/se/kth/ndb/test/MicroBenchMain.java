@@ -162,8 +162,10 @@ public class MicroBenchMain {
       } else if (microBenchTypeStr.compareToIgnoreCase("FTS") == 0) {
         microBenchType = MicroBenchType.FTS;
       } else {
-        System.out.println("Wrong bench mark type");
-        showHelp(parser, true);
+        if(!createDummyData) {
+          System.out.println("Wrong bench mark type");
+          showHelp(parser, true);
+        }
       }
 
     } catch (Exception e) {
