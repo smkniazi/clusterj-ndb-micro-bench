@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-source ./schema.properties
+source ./setup
 if [[ $1 = "all" ]] ; then
 	echo "Deleting all data"
 	MYSQL_PWD=$password mysql -u$username  -h$dbHost -P$mysqlPort $db -e "truncate table1"

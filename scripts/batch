@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
-source ./schema.properties
-java -Xmx20G  -XX:MaxDirectMemorySize=1000m -jar ../target/clusterj-ndb-micro-benchmark-1.0-jar-with-dependencies.jar -schema $db -dbHost $dbHost -clientId $clientId -rowPerTx 10 -numThreads 1 -microBenchType BATCH  -distributedPKOps -maxOperationsToPerform 100
+source ./setup
+java -Xmx20G  -XX:MaxDirectMemorySize=1000m -jar ../target/clusterj-ndb-micro-benchmark-1.0-jar-with-dependencies.jar -schema $db -dbHost $dbHost -clientId $clientId -rowsPerTx $rowsPerTx -numThreads $numThreads -microBenchType BATCH  -distributedPKOps -maxOperationsToPerform $totalOps
 #nonDistributedBatch

@@ -44,7 +44,7 @@ public class MicroBenchMain {
   @Option(name = "-dbHost", usage = "com.mysql.clusterj.connectstring.")
   static private String dbHost = "";
 
-  @Option(name = "-rowPerTx", usage = "Number of rows that are read in each transaction")
+  @Option(name = "-rowsPerTx", usage = "Number of rows that are read in each transaction")
   static private int rowsPerTx = 1;
 
   @Option(name = "-maxOperationsToPerform", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
