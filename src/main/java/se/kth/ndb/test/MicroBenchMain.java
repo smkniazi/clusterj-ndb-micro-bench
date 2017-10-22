@@ -3,6 +3,7 @@ package se.kth.ndb.test;
 
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.LockMode;
+import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -28,7 +29,7 @@ public class MicroBenchMain {
 
   @Option(name = "-microBenchType", usage = "PK, BATCH, PPIS, IS, FTS")
   private static String microBenchTypeStr = "PK";
-  private static MicroBenchType microBenchType = MicroBenchType.PK;
+  private static MicroBenchType microBenchType = MicroBenchType.PK_ND;
 
   @Option(name = "-nonDistributedPKOps", usage = "For each thread all the operations in a PK/BATCH test will be performed on a single partition")
   private static boolean nonDistributedPKOps = false;
@@ -86,22 +87,19 @@ public class MicroBenchMain {
 
     writeData();
 
-
-    String testType = testType();
-    blueColoredText(testType);
-    writeToFile("result.txt", false, testType);
-
     System.out.println("Press enter to start execution");
     System.in.read();
     long startTime = System.currentTimeMillis();
     startMicroBench();
     long totExeTime = (System.currentTimeMillis()-startTime);
 
-    long speed = (long)((successfulOps.get()/(double)totExeTime)*1000);
+    long avgSpeed = (long)((successfulOps.get()/(double)totExeTime)*1000);
+    double avgLatency = latency.getMean()/1000000;
 
-    String msg = "Speed: "+speed+" ops/sec.\t\tAvg Op Latency: "+latency.getMean()/1000000;
+    String msg ="Results: "+ microBenchType+" NumThreads: "+numThreads+" Speed: "+avgSpeed+" ops/sec.\t\tAvg Op Latency: "+avgLatency;
     blueColoredText(msg);
     writeToFile("result.txt", true, msg);
+    saveResultsToDB(avgSpeed, avgLatency);
 
   }
 
@@ -128,13 +126,26 @@ public class MicroBenchMain {
       }
 
       if (microBenchTypeStr.compareToIgnoreCase("PK") == 0) {
-        microBenchType = MicroBenchType.PK;
-      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH") == 0) {
-        microBenchType = MicroBenchType.BATCH;
         if ((distributedPKOps && nonDistributedPKOps) ||
                 (!distributedPKOps && !nonDistributedPKOps)) {
           System.out.println("Seletect One. Distributed/Non Distributed batch Operations");
           showHelp(parser, true);
+        }
+        if(distributedPKOps) {
+          microBenchType = MicroBenchType.PK_D;
+        }else{
+          microBenchType = MicroBenchType.PK_ND;
+        }
+      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH") == 0) {
+        if ((distributedPKOps && nonDistributedPKOps) ||
+                (!distributedPKOps && !nonDistributedPKOps)) {
+          System.out.println("Seletect One. Distributed/Non Distributed batch Operations");
+          showHelp(parser, true);
+          if(distributedPKOps) {
+            microBenchType = MicroBenchType.BATCH_D;
+          }else{
+            microBenchType = MicroBenchType.BATCH_ND;
+          }
         }
       } else if (microBenchTypeStr.compareToIgnoreCase("PPIS") == 0) {
         microBenchType = MicroBenchType.PPIS;
@@ -278,29 +289,15 @@ public class MicroBenchMain {
     System.out.print((char) 27 + "[0m");
   }
 
-  public String testType()  {
-    String message = "";
-    switch (microBenchType) {
-      case PK:
-        String dist = distributedPKOps?"DISTRIBUTED":"NON-DISTRIBUTED";
-        message = dist+" PK Read Test. [partKey, id]";
-        break;
-      case BATCH:
-        dist =distributedPKOps?"DISTRIBUTED":"NON-DISTRIBUTED";
-        message = dist+" BATCH Read Test. [partKey, id]";
-        break;
-      case PPIS:
-        message = "PPIS Read Test. Select * from test where partition_id=?";
-        break;
-      case IS:
-        message = "IS Read Test. Select * from test where data1=?";
-        break;
-      case FTS:
-        message = "FTS Read Test. Select * from test where data1=?";
-        break;
-      default:
-        throw new IllegalStateException("Micro bench mark not supported");
-    }
-    return message;
+  private void saveResultsToDB(double avgSpeed, double avgLatency){
+    Session session = sf.getSession();
+    session.currentTransaction().begin();
+    Results row = session.newInstance(Results.class);
+    row.setTest(microBenchType.toString());
+    row.setThreads(numThreads);
+    row.setSpeed(avgSpeed);
+    row.setLatency(avgLatency);
+    session.savePersistent(row);
+    session.currentTransaction().commit();
   }
 }

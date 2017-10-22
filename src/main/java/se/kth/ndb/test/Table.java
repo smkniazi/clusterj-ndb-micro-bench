@@ -2,11 +2,6 @@ package se.kth.ndb.test;
 
 import com.mysql.clusterj.annotation.*;
 
-/*
-
-create table `test_table` (`partition_id` int, `id` int, data int, PRIMARY KEY (`partition_id`,`id`)) partition by key (partition_id);
-
-*/
 @PersistenceCapable(table = "test")
 @PartitionKey(column = "partition_id")
 public interface Table {

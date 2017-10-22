@@ -80,10 +80,12 @@ public class Worker implements Runnable {
 
   public void readData(Session session) throws Exception {
     switch (microBenchType) {
-      case PK:
+      case PK_D:
+      case PK_ND:
         pkRead(session);
         return;
-      case BATCH:
+      case BATCH_D:
+      case BATCH_ND:
         batchRead(session);
         return;
       case PPIS:
@@ -229,13 +231,14 @@ public class Worker implements Runnable {
   private int getPartitionKey(int rowId) {
 
     switch (microBenchType) {
-      case PK:
-      case BATCH:
-        if (distributedPKOps) {
-          return rowId;
-        } else {
-          return threadId;
-        }
+      case PK_D:
+        return rowId;
+      case PK_ND:
+        return threadId;
+      case BATCH_D:
+        return  rowId;
+      case BATCH_ND:
+        return threadId;
       case PPIS:
         return threadId;
       case IS:
