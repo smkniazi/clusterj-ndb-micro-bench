@@ -7,6 +7,7 @@ import com.mysql.clusterj.SessionFactory;
 import com.mysql.clusterj.query.Predicate;
 import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDomainType;
+import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +26,12 @@ public class Worker implements Runnable {
   final int rowsPerTx;
   final boolean distributedPKOps;
   final LockMode lockMode;
+  final SynchronizedDescriptiveStatistics latency;
 
   public Worker(int threadId, AtomicInteger opsCompleted, AtomicInteger successfulOps, AtomicInteger failedOps,
                 AtomicInteger speed, long maxOperationsToPerform, MicroBenchType microBenchType, SessionFactory sf,
-                int rowStartId, int rowsPerTx, boolean distributedPKOps, LockMode lockMode) {
+                int rowStartId, int rowsPerTx, boolean distributedPKOps, LockMode lockMode,
+                SynchronizedDescriptiveStatistics lagency) {
     this.threadId = threadId;
     this.opsCompleted = opsCompleted;
     this.successfulOps = successfulOps;
@@ -41,6 +44,7 @@ public class Worker implements Runnable {
     this.rowsPerTx = rowsPerTx;
     this.distributedPKOps = distributedPKOps;
     this.lockMode = lockMode;
+    this.latency = lagency;
   }
 
   @Override
@@ -48,9 +52,12 @@ public class Worker implements Runnable {
     Session dbSession = sf.getSession();
     while (true) {
       try {
+        long startTime = System.nanoTime();
         dbSession.currentTransaction().begin();
         readData(dbSession);
         dbSession.currentTransaction().commit();
+        long opExeTime=(System.nanoTime()-startTime);
+        latency.addValue(opExeTime);
         successfulOps.incrementAndGet();
         speed.incrementAndGet();
       } catch (Throwable e) {

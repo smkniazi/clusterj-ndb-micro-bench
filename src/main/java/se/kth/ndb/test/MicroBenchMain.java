@@ -6,15 +6,17 @@ import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.SessionFactory;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-
 import java.io.IOException;
 import java.text.NumberFormat;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 
 public class MicroBenchMain {
   @Option(name = "-numThreads", usage = "Number of threads. Default is 1")
@@ -49,11 +51,18 @@ public class MicroBenchMain {
   @Option(name = "-clientId", usage = "Id of this application. In case of distributed deployment each instance of this benchmark should have a unique id")
   static private int clientId = 0;
 
+  @Option(name = "-createDummyData", usage = "Create dummy data")
+  static private boolean createDummyData = false;
+
+  @Option(name = "-numDummyRows", usage = "Number of dummy rows to create")
+  static private int numDummyRows = 1000;
+
   private AtomicInteger opsCompleted = new AtomicInteger(0);
   private AtomicInteger successfulOps = new AtomicInteger(0);
   private AtomicInteger failedOps = new AtomicInteger(0);
   private AtomicInteger speed = new AtomicInteger(0);
   private static long lastOutput = 0;
+  private SynchronizedDescriptiveStatistics latency = new SynchronizedDescriptiveStatistics();
 
   Random rand = new Random(System.currentTimeMillis());
   ExecutorService executor = null;
@@ -69,18 +78,23 @@ public class MicroBenchMain {
 
     setUpDBConnection();
 
+    if(createDummyData) {
+      writeDummyData();
+    }
+
     createWorkers();
 
     writeData();
 
     System.out.println("Press enter to start execution");
     System.in.read();
+    long startTime = System.currentTimeMillis();
     startMicroBench();
+    long totExeTime = (System.currentTimeMillis()-startTime);
 
-//    System.out.println("Press enter to shut down");
-//    System.in.read();
-//    sf.close();
-//    executor = null;
+    long speed = (long)((successfulOps.get()/(double)totExeTime)*1000);
+
+    System.out.println("Speed: "+speed+" ops/sec.\t\tAvg Op Latency: "+latency.getMean()/1000000);
   }
 
   private void parseArgs(String[] args) {
@@ -149,6 +163,34 @@ public class MicroBenchMain {
     sf = ClusterJHelper.getSessionFactory(props);
   }
 
+  public void writeDummyData() throws InterruptedException, IOException {
+    if(createDummyData){
+      workers = new Worker[numThreads];
+      executor = Executors.newFixedThreadPool(numThreads);
+
+      int rowsPerThread = numDummyRows / numThreads;
+      int rowsStartId = 10000000;
+      DummyDataWriter[] workers = new DummyDataWriter[numThreads];
+      for (int i = 0; i < numThreads; i++){
+        int threadRowsStartId = (rowsStartId+ (i*rowsPerThread));
+        int threadRowsEndId = threadRowsStartId + rowsPerThread;
+        workers[i] = ( new DummyDataWriter(0,successfulOps,speed,sf,threadRowsStartId, threadRowsEndId ));
+      }
+
+      for (int i = 0; i < numThreads; i++) {
+        executor.execute(workers[i]);
+      }
+      executor.shutdown();
+      long startTime = System.currentTimeMillis();
+      while (!executor.isTerminated()) {
+        Thread.sleep(1000);
+        System.out.println("Writing speed: "+speed);
+        speed.set(0);
+      }
+      System.exit(0);
+    }
+  }
+
   public void createWorkers() throws InterruptedException, IOException {
     workers = new Worker[numThreads];
     executor = Executors.newFixedThreadPool(numThreads);
@@ -159,7 +201,8 @@ public class MicroBenchMain {
       int threadId = threadIdStart + i;
       int rowStartId = existingRows + (i * rowsPerTx);
       Worker worker = new Worker((threadIdStart + i), opsCompleted, successfulOps, failedOps, speed,
-              maxOperationsToPerform, microBenchType, sf, rowStartId, rowsPerTx, distributedBatch, lockMode);
+              maxOperationsToPerform, microBenchType, sf, rowStartId, rowsPerTx, distributedBatch, lockMode,
+              latency);
       workers[i] = worker;
     }
   }
