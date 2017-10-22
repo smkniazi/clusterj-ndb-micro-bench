@@ -6,6 +6,8 @@ import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.SessionFactory;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+
+import java.io.FileWriter;
 import java.io.IOException;
 import java.text.NumberFormat;
 
@@ -94,7 +96,12 @@ public class MicroBenchMain {
 
     long speed = (long)((successfulOps.get()/(double)totExeTime)*1000);
 
-    System.out.println("Speed: "+speed+" ops/sec.\t\tAvg Op Latency: "+latency.getMean()/1000000);
+    String msg = "Speed: "+speed+" ops/sec.\t\tAvg Op Latency: "+latency.getMean()/1000000;
+    blueColoredText(msg);
+    FileWriter out = new FileWriter("result.txt", false);
+    out.write(msg + "\n");
+    out.close();
+
   }
 
   private void parseArgs(String[] args) {
@@ -253,4 +260,15 @@ public class MicroBenchMain {
     sb.append("Direct Mem: " + sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed() / (1024 * 1024) + " MB. \n");
     return sb;
   }
+
+  private void redColoredText(String msg) {
+    System.out.println((char) 27 + "[31m" + msg);
+    System.out.print((char) 27 + "[0m");
+  }
+
+  public static void blueColoredText(String msg) {
+    System.out.println((char) 27 + "[36m" + msg);
+    System.out.print((char) 27 + "[0m");
+  }
+
 }

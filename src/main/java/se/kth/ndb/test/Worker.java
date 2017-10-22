@@ -216,7 +216,8 @@ public class Worker implements Runnable {
       row.setPartitionId(partitionId);
       row.setData(partitionId); // setting the data partition id, used in FTS
       System.out.println(row.getId() + "\t\t" + row.getPartitionId() + "\t\t" + row.getData());
-      session.makePersistent(row);
+      //session.makePersistent(row);
+      session.savePersistent(row);
     }
     session.currentTransaction().commit();
     session.close();
@@ -264,5 +265,7 @@ public class Worker implements Runnable {
       throw new IllegalStateException("Micro benchmark type not supported");
     }
   }
+
+
 }
 
