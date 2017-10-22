@@ -184,7 +184,7 @@ public class MicroBenchMain {
       long startTime = System.currentTimeMillis();
       while (!executor.isTerminated()) {
         Thread.sleep(1000);
-        System.out.println("Writing speed: "+speed);
+        System.out.println("Writing speed: "+speed+" ops/sec");
         speed.set(0);
       }
       System.exit(0);

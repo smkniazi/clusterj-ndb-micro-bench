@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 source ./schema.properties
-java -Xmx20G  -XX:MaxDirectMemorySize=1000m -jar ../target/clusterj-ndb-micro-benchmark-1.0-jar-with-dependencies.jar -schema $db -dbHost $dbHost -numThreads 10  -createDummyData -numDummyRows 100
+java -Xmx20G  -XX:MaxDirectMemorySize=1000m -jar ../target/clusterj-ndb-micro-benchmark-1.0-jar-with-dependencies.jar -schema $db -dbHost $dbHost -numThreads 10  -createDummyData -numDummyRows 10000

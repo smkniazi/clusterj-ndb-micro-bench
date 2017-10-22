@@ -222,13 +222,6 @@ public class Worker implements Runnable {
     session.close();
   }
 
-  private void deleteAllData() throws Exception {
-    Session session = sf.getSession();
-    session.deletePersistentAll(TableWithOutUDP.class);
-    session.deletePersistentAll(TableWithUDP.class);
-    session.close();
-  }
-
   private int getPartitionKey(int rowId) {
 
     switch (microBenchType) {

@@ -36,7 +36,7 @@ public class DummyDataWriter implements Runnable {
     for (int i = rowStartId; i < rowEndId; i++) {
       try {
         dbSession.currentTransaction().begin();
-        writeData(i);
+        writeData(dbSession, i);
         dbSession.currentTransaction().commit();
         successfulOps.incrementAndGet();
         speed.incrementAndGet();
@@ -53,8 +53,7 @@ public class DummyDataWriter implements Runnable {
   }
 
 
-  protected void writeData(int id) throws Exception {
-    Session session = sf.getSession();
+  protected void writeData(Session session, int id) throws Exception {
     Table row = session.newInstance(TableWithUDP.class);
     row.setId(id);
     row.setPartitionId(id);
