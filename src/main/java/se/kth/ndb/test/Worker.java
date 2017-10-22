@@ -220,8 +220,8 @@ public class Worker implements Runnable {
       row.setData1(threadId); // setting the data partition id, used in FTS, and IS
       row.setData2(threadId); // setting the data partition id, used in FTS, and IS
       System.out.println(row.getId() + "\t\t" + row.getPartitionId() + "\t\t" + row.getData1()+ "\t\t" + row.getData2());
-      session.makePersistent(row);
-//      session.savePersistent(row);
+//      session.makePersistent(row);
+      session.savePersistent(row);
     }
     session.currentTransaction().commit();
     session.close();
