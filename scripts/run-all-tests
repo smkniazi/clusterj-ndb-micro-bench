@@ -4,7 +4,7 @@ set -e
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 user=tester
-threads=(1 2 3 4 5)
+threads=(1 2 3 4 5) 
 hosts="hadoop2 hadoop3 hadoop4 hadoop6 hadoop36"
 
 tests=(pk batch ppis is)
@@ -15,7 +15,7 @@ do
 	for test in ${tests[@]}
 	do
 		pssh -H "$hosts" -l $user "sed -i 's#numThreads=.*#numThreads=$thread#g' $DIR/setup" 
-		echo "bash $DIR/$test " 
+		echo "Running test $test for thread count $thread" 
 		pssh -H "$hosts" -l $user -i "bash $DIR/$test " 
 	done
 done
