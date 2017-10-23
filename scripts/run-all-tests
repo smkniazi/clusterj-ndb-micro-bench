@@ -4,18 +4,23 @@ set -e
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 user=tester
-threads=(1 2 3 4 5)
 hosts="hadoop2 hadoop3 hadoop4 hadoop6 hadoop36"
 
-tests=(pk batch ppis is)
+tests=(pk batch ppis is fts)
 path="/home/tester/salman/clusterj-ndb-micro-bench/scripts"
 
-for ((i=1; i<=100; i++))
+for ((thread=1; thread<=100;))
 do
+
 	for test in ${tests[@]}
 	do
 		pssh -H "$hosts" -l $user "sed -i 's#numThreads=.*#numThreads=$thread#g' $DIR/setup" 
 		echo "Running test $test for thread count $thread" 
-		pssh -H "$hosts" -l $user -i "bash $DIR/$test " 
+		pssh -H "$hosts" -l $user -i -t 600 "bash $DIR/$test " 
 	done
+	if [[ $thread = 1 ]]; then
+		thread=2;
+    else
+		thread=$(echo "$thread+2" | bc)
+	fi
 done
