@@ -58,6 +58,9 @@ public class MicroBenchMain {
   @Option(name = "-skipPrompt", usage = "Do not ask for (Y/N) before starting the bench mark")
   static private boolean skipPrompt = false;
 
+  @Option(name = "-runNumber", usage = "It is just a number that niquely identifies an expriemnt. This number is used in compiling the results. See compile.sh script")
+  static private int runNumber = 1;
+
   @Option(name = "-numDummyRows", usage = "Number of dummy rows to create")
   static private int numDummyRows = 1000;
 
@@ -307,6 +310,7 @@ public class MicroBenchMain {
     row.setThreads(numThreads);
     row.setSpeed(avgSpeed);
     row.setLatency(avgLatency);
+    row.setRun(runNumber);
     session.makePersistent(row);
     session.currentTransaction().commit();
   }

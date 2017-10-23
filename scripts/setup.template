@@ -8,4 +8,6 @@ clientId=
 rowsPerTx=
 numThreads=
 totalOps=
-skipPrompt=
+#un comment if you want to disable (y/n) prompt before starting the experiment
+#skipPrompt="-skipPrompt"
+runNumber=

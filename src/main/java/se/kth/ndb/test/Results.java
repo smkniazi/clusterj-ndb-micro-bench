@@ -25,5 +25,9 @@ public interface Results {
   @Column(name = "latency")
   double getLatency();
   void setLatency(double latency);
+
+  @Column(name = "run")
+  int getRun();
+  void setRun(int run);
 }
 
