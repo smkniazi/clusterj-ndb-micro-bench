@@ -8,16 +8,16 @@ hosts="hadoop2 hadoop3 hadoop4 hadoop6 hadoop36"
 
 tests=(pk batch ppis is fts)
 path="/home/tester/salman/clusterj-ndb-micro-bench/scripts"
-batchSizes=(1 5 10 20)
+batchSizes=(1 5 10 20 30)
 
-for ((run=1; run<=6;run++))
+for ((run=1; run<=3;run++))
 do
 	pssh -H "$hosts" -l $user "sed -i 's#runNumber=.*#runNumber=$run#g' $DIR/setup" 
 	for batchSize in ${batchSizes[@]}
 	do
 		pssh -H "$hosts" -l $user "sed -i 's#rowsPerTx=.*#rowsPerTx=$batchSize#g' $DIR/setup" 
 
-		for ((thread=4; thread<=24;))
+		for ((thread=6; thread<=30;))
 		do
 			pssh -H "$hosts" -l $user "sed -i 's#numThreads=.*#numThreads=$thread#g' $DIR/setup" 
 			for test in ${tests[@]}
