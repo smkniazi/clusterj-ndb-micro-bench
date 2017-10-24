@@ -29,5 +29,9 @@ public interface Results {
   @Column(name = "run")
   int getRun();
   void setRun(int run);
+
+  @Column(name = "rowSize")
+  int getRowSize();
+  void setRowSize(int rowSize);
 }
 

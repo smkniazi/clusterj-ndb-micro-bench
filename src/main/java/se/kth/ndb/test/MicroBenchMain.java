@@ -233,13 +233,9 @@ public class MicroBenchMain {
     workers = new Worker[numThreads];
     executor = Executors.newFixedThreadPool(numThreads);
 
-    int threadIdStart = (clientId * numThreads);
-    int existingRows = (clientId * numThreads * rowsPerTx);
     for (int i = 0; i < numThreads; i++) {
-      int threadId = threadIdStart + i;
-      int rowStartId = existingRows + (i * rowsPerTx);
-      Worker worker = new Worker((threadIdStart + i), opsCompleted, successfulOps, failedOps, speed,
-              maxOperationsToPerform, microBenchType, sf, rowStartId, rowsPerTx, distributedPKOps, lockMode,
+      Worker worker = new Worker(opsCompleted, successfulOps, failedOps, speed,
+              maxOperationsToPerform, microBenchType, sf, rowsPerTx, distributedPKOps, lockMode,
               latency);
       workers[i] = worker;
     }
@@ -311,6 +307,7 @@ public class MicroBenchMain {
     row.setSpeed(avgSpeed);
     row.setLatency(avgLatency);
     row.setRun(runNumber);
+    row.setRowSize(rowsPerTx);
     session.makePersistent(row);
     session.currentTransaction().commit();
   }

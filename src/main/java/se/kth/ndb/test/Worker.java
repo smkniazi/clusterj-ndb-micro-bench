@@ -9,12 +9,10 @@ import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDomainType;
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Worker implements Runnable {
-  final int threadId;
   final AtomicInteger opsCompleted;
   final AtomicInteger successfulOps;
   final AtomicInteger failedOps;
@@ -22,17 +20,18 @@ public class Worker implements Runnable {
   final long maxOperationsToPerform;
   final MicroBenchType microBenchType;
   final SessionFactory sf;
-  final int rowStartId;
   final int rowsPerTx;
   final boolean distributedPKOps;
   final LockMode lockMode;
   final SynchronizedDescriptiveStatistics latency;
+  Random rand = new Random(System.nanoTime());
 
-  public Worker(int threadId, AtomicInteger opsCompleted, AtomicInteger successfulOps, AtomicInteger failedOps,
+  final List<Set<Row>> dataSet = new ArrayList<Set<Row>>();
+
+  public Worker(AtomicInteger opsCompleted, AtomicInteger successfulOps, AtomicInteger failedOps,
                 AtomicInteger speed, long maxOperationsToPerform, MicroBenchType microBenchType, SessionFactory sf,
-                int rowStartId, int rowsPerTx, boolean distributedPKOps, LockMode lockMode,
+                int rowsPerTx, boolean distributedPKOps, LockMode lockMode,
                 SynchronizedDescriptiveStatistics lagency) {
-    this.threadId = threadId;
     this.opsCompleted = opsCompleted;
     this.successfulOps = successfulOps;
     this.failedOps = failedOps;
@@ -40,7 +39,6 @@ public class Worker implements Runnable {
     this.maxOperationsToPerform = maxOperationsToPerform;
     this.microBenchType = microBenchType;
     this.sf = sf;
-    this.rowStartId = rowStartId;
     this.rowsPerTx = rowsPerTx;
     this.distributedPKOps = distributedPKOps;
     this.lockMode = lockMode;
@@ -104,36 +102,40 @@ public class Worker implements Runnable {
 
 
   void pkRead(Session session) {
+
     boolean partitionKeyHintSet = false;
-    for (int i = 0; i < rowsPerTx; i++) {
-      int rowId = rowStartId + i;
+    int index = rand.nextInt(dataSet.size());
+    Set<Row> set  = dataSet.get(index);
+
+    for (Row row : set) {
       Object key[] = new Object[2];
-      key[0] = getPartitionKey(rowId);
-      key[1] = rowId;
+      key[0] = row.getPratitionKey();
+      key[1] = row.getId();
 
       if (!partitionKeyHintSet) {
         session.setPartitionKey(Table.class, key);
         partitionKeyHintSet = true;
       }
       session.setLockMode(lockMode);
-      Table row = session.find(Table.class, key);
-      if(row == null){
+      Table dbRow = session.find(Table.class, key);
+      if(dbRow == null){
         throw new IllegalStateException("Read null");
       }
     }
   }
 
   void batchRead(Session session) {
+    int index = rand.nextInt(dataSet.size());
+    Set<Row> set  = dataSet.get(index);
+
     List<Object> batch = new ArrayList<Object>();
-    for (int i = 0; i < rowsPerTx; i++) {
-      int rowId = rowStartId + i;
-      int partKey = getPartitionKey(rowId);
-      Table row = getTableInstance(session);
-      row.setId(rowId);
-      row.setPartitionId(partKey);
-      row.setData1(-1);
-      row.setData2(-1);
-      batch.add(row);
+    for (Row row : set) {
+      Table dbRow = getTableInstance(session);
+      dbRow.setId(row.getId());
+      dbRow.setPartitionId(row.getPratitionKey());
+      dbRow.setData1(-1);
+      dbRow.setData2(-1);
+      batch.add(dbRow);
     }
 
     Object key[] = new Object[2];
@@ -156,17 +158,24 @@ public class Worker implements Runnable {
   }
 
   void ppisRead(Session session) {
+    int index = rand.nextInt(dataSet.size());
+    Set<Row> set  = dataSet.get(index);
+
+    Iterator<Row> itr = set.iterator();
+    Row firstElement = itr.next();
+    int partitionKey = firstElement.getPratitionKey();
+
     QueryBuilder qb = session.getQueryBuilder();
     QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
     Predicate pred1 = qdty.get("partitionId").equal(qdty.param("partitionIdParam"));
     qdty.where(pred1);
 
     Query<Table> query = session.createQuery(qdty);
-    query.setParameter("partitionIdParam", threadId );
+    query.setParameter("partitionIdParam", partitionKey );
 
     Object key[] = new Object[2];
-    key[0] = getPartitionKey(rowStartId);
-    key[1] = rowStartId;
+    key[0] = partitionKey;
+    key[1] = firstElement.getId();
     session.setPartitionKey(Table.class, key);
     session.setLockMode(lockMode);
     List<Table> lists = query.getResultList();
@@ -176,13 +185,20 @@ public class Worker implements Runnable {
   }
 
   void isRead(Session session) {
+    int index = rand.nextInt(dataSet.size());
+    Set<Row> set  = dataSet.get(index);
+
+    Iterator<Row> itr = set.iterator();
+    Row firstElement = itr.next();
+    int partitionKey = firstElement.getPratitionKey();
+
     QueryBuilder qb = session.getQueryBuilder();
     QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
     Predicate pred1 = qdty.get("data1").equal(qdty.param("data1Param"));
     qdty.where(pred1);
 
     Query<Table> query = session.createQuery(qdty);
-    query.setParameter("data1Param", threadId );
+    query.setParameter("data1Param", partitionKey);
 
     session.setLockMode(lockMode);
     List<Table> lists = query.getResultList();
@@ -192,13 +208,20 @@ public class Worker implements Runnable {
   }
 
   void ftsRead(Session session) {
+    int index = rand.nextInt(dataSet.size());
+    Set<Row> set  = dataSet.get(index);
+
+    Iterator<Row> itr = set.iterator();
+    Row firstElement = itr.next();
+    int partitionKey = firstElement.getPratitionKey();
+
     QueryBuilder qb = session.getQueryBuilder();
     QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
     Predicate pred1 = qdty.get("data2").equal(qdty.param("data2Param"));
     qdty.where(pred1);
 
     Query<Table> query = session.createQuery(qdty);
-    query.setParameter("data2Param", threadId );
+    query.setParameter("data2Param", partitionKey );
 
     session.setLockMode(lockMode);
     List<Table> lists = query.getResultList();
@@ -207,47 +230,53 @@ public class Worker implements Runnable {
     }
   }
 
-  protected void writeData() throws Exception {
-    Session session = sf.getSession();
-    session.currentTransaction().begin();
 
-    System.out.println("Wriring Data for thread no: " + threadId);
-    for (int i = 0; i < rowsPerTx; i++) {
-      Table row = getTableInstance(session);
-      int rowId = rowStartId + i;
-      int partitionId = getPartitionKey(rowId);
-      row.setId(rowId);
-      row.setPartitionId(partitionId);
-      row.setData1(threadId); // setting the data partition id, used in FTS, and IS
-      row.setData2(threadId); // setting the data partition id, used in FTS, and IS
-      System.out.println(row.getId() + "\t\t" + row.getPartitionId() + "\t\t" + row.getData1()+ "\t\t" + row.getData2());
-//      session.makePersistent(row);
-      session.savePersistent(row);
+
+  protected void saveSet(Session session, Set<Row> rows){
+    session.currentTransaction().begin();
+    for(Row row : rows){
+      Table dbRow = getTableInstance(session);
+      dbRow.setId(row.getId());
+      dbRow.setPartitionId(row.getPratitionKey());
+      dbRow.setData1(row.getData1()); // setting the data partition id, used in FTS, and IS
+      dbRow.setData2(row.getData2()); // setting the data partition id, used in FTS, and IS
+      session.makePersistent(dbRow);
     }
     session.currentTransaction().commit();
-    session.close();
   }
 
-  private int getPartitionKey(int rowId) {
+  protected void writeData() throws Exception {
 
-    switch (microBenchType) {
-      case PK_D:
-        return rowId;
-      case PK_ND:
-        return threadId;
-      case BATCH_D:
-        return  rowId;
-      case BATCH_ND:
-        return threadId;
-      case PPIS:
-        return threadId;
-      case IS:
-        return threadId;
-      case FTS:
-        return threadId;
-      default:
-        throw new IllegalStateException("Micro bench mark not supported");
+    if(microBenchType == MicroBenchType.PK_D || microBenchType == MicroBenchType.BATCH_D){
+        throw new UnsupportedOperationException("Not implemented yet");
     }
+
+    Session session = sf.getSession();
+
+    for ( int i = 0; i < 10;){
+      int partitionKey = rand.nextInt();
+
+      Set<Row> rows = new HashSet<Row>();
+      for(int j = 0; j < rowsPerTx; j++) {
+        int id = rand.nextInt();
+        Row row = new Row(partitionKey, id, partitionKey, partitionKey);
+        rows.add(row);
+      }
+
+      try {
+        saveSet(session, rows);
+      } catch (Exception e){
+          e.printStackTrace();
+        continue;
+      }
+      dataSet.add(rows);
+      System.out.println("Created Set "+i);
+      System.out.println(Arrays.toString(rows.toArray()));
+      i++;
+    }
+
+    System.out.println("All rows created");
+    session.close();
   }
 
   private Table getTableInstance(Session session) {
