@@ -246,6 +246,7 @@ public class MicroBenchMain {
     for (int i = 0; i < numThreads; i++) {
       workers[i].writeData();
     }
+    System.out.println("All data written");
   }
 
   public void startMicroBench() throws InterruptedException, IOException {

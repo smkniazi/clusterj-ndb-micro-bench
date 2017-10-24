@@ -271,8 +271,6 @@ public class Worker implements Runnable {
 //      System.out.println(Arrays.toString(rows.toArray()));
       i++;
     }
-
-    System.out.println("All rows created");
     session.close();
   }
 
