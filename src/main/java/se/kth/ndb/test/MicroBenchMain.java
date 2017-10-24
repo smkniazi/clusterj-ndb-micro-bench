@@ -102,7 +102,6 @@ public class MicroBenchMain {
     startMicroBench();
     long totExeTime = (System.currentTimeMillis()-startTime);
 
-    System.out.println("time: "+totExeTime+" Sussops: "+successfulOps.get());
     long avgSpeed = (long)(((double)successfulOps.get()/(double)totExeTime)*1000);
     double avgLatency = latency.getMean()/1000000;
 
@@ -246,7 +245,6 @@ public class MicroBenchMain {
     for (int i = 0; i < numThreads; i++) {
       workers[i].writeData();
     }
-    System.out.println("All data written");
   }
 
   public void startMicroBench() throws InterruptedException, IOException {
