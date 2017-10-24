@@ -13,7 +13,6 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Worker implements Runnable {
-  final AtomicInteger opsCompleted;
   final AtomicInteger successfulOps;
   final AtomicInteger failedOps;
   final AtomicInteger speed;
@@ -28,11 +27,10 @@ public class Worker implements Runnable {
 
   final List<Set<Row>> dataSet = new ArrayList<Set<Row>>();
 
-  public Worker(AtomicInteger opsCompleted, AtomicInteger successfulOps, AtomicInteger failedOps,
+  public Worker(AtomicInteger successfulOps, AtomicInteger failedOps,
                 AtomicInteger speed, long maxOperationsToPerform, MicroBenchType microBenchType, SessionFactory sf,
                 int rowsPerTx, boolean distributedPKOps, LockMode lockMode,
                 SynchronizedDescriptiveStatistics lagency) {
-    this.opsCompleted = opsCompleted;
     this.successfulOps = successfulOps;
     this.failedOps = failedOps;
     this.speed = speed;
@@ -59,12 +57,11 @@ public class Worker implements Runnable {
         successfulOps.incrementAndGet();
         speed.incrementAndGet();
       } catch (Throwable e) {
-        opsCompleted.incrementAndGet();
         failedOps.incrementAndGet();
         e.printStackTrace();
         dbSession.currentTransaction().rollback();
       } finally {
-        if (opsCompleted.incrementAndGet() >= maxOperationsToPerform) {
+        if (successfulOps.incrementAndGet() >= maxOperationsToPerform) {
           break;
         }
       }
@@ -270,8 +267,8 @@ public class Worker implements Runnable {
         continue;
       }
       dataSet.add(rows);
-      System.out.println("Created Set "+i);
-      System.out.println(Arrays.toString(rows.toArray()));
+//      System.out.println("Created Set "+i);
+//      System.out.println(Arrays.toString(rows.toArray()));
       i++;
     }
 

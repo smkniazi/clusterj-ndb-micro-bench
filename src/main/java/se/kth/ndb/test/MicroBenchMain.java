@@ -64,7 +64,6 @@ public class MicroBenchMain {
   @Option(name = "-numDummyRows", usage = "Number of dummy rows to create")
   static private int numDummyRows = 1000;
 
-  private AtomicInteger opsCompleted = new AtomicInteger(0);
   private AtomicInteger successfulOps = new AtomicInteger(0);
   private AtomicInteger failedOps = new AtomicInteger(0);
   private AtomicInteger speed = new AtomicInteger(0);
@@ -103,7 +102,8 @@ public class MicroBenchMain {
     startMicroBench();
     long totExeTime = (System.currentTimeMillis()-startTime);
 
-    long avgSpeed = (long)((successfulOps.get()/(double)totExeTime)*1000);
+    System.out.println("time: "+totExeTime+" Sussops: "+successfulOps.get());
+    long avgSpeed = (long)(((double)successfulOps.get()/(double)totExeTime)*1000);
     double avgLatency = latency.getMean()/1000000;
 
     String msg ="Results: "+ microBenchType+" NumThreads: "+numThreads+" Speed: "+avgSpeed+" ops/sec.\t\tAvg Op Latency: "+avgLatency;
@@ -234,7 +234,7 @@ public class MicroBenchMain {
     executor = Executors.newFixedThreadPool(numThreads);
 
     for (int i = 0; i < numThreads; i++) {
-      Worker worker = new Worker(opsCompleted, successfulOps, failedOps, speed,
+      Worker worker = new Worker(successfulOps, failedOps, speed,
               maxOperationsToPerform, microBenchType, sf, rowsPerTx, distributedPKOps, lockMode,
               latency);
       workers[i] = worker;
