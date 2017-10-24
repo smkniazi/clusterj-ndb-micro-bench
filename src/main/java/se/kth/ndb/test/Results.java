@@ -30,8 +30,8 @@ public interface Results {
   int getRun();
   void setRun(int run);
 
-  @Column(name = "rowSize")
-  int getRowSize();
-  void setRowSize(int rowSize);
+  @Column(name = "batchSize")
+  int getBatchSize();
+  void setBatchSize(int rowSize);
 }
 
