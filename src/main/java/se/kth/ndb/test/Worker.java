@@ -250,7 +250,7 @@ public class Worker implements Runnable {
 
     Session session = sf.getSession();
 
-    for ( int i = 0; i < 10;){
+    for ( int i = 0; i < 100;){
       int partitionKey = rand.nextInt();
 
       Set<Row> rows = new HashSet<Row>();
