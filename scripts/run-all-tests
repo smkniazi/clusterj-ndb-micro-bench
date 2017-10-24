@@ -29,7 +29,7 @@ do
 				fi
 				echo "Running test $test for thread count $thread run number $run" 
 				bash ./delete-data all
-				pssh -H "$hosts" -l $user  -t 600 "bash $DIR/$test " 
+				pssh -H "$hosts" -l $user -i  -t 600 "bash $DIR/$test " 
 			done
 			if [[ $thread = 1 ]]; then
 				thread=2;
