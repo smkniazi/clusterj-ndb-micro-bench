@@ -8,23 +8,34 @@ hosts="hadoop2 hadoop3 hadoop4 hadoop6 hadoop36"
 
 tests=(pk batch ppis is fts)
 path="/home/tester/salman/clusterj-ndb-micro-bench/scripts"
+batchSizes=(1 5 10 20)
 
-for ((run=1; run<=3;run++))
+for ((run=1; run<=6;run++))
 do
-	for ((thread=1; thread<=100;))
+	pssh -H "$hosts" -l $user "sed -i 's#runNumber=.*#runNumber=$run#g' $DIR/setup" 
+	for batchSize in ${batchSizes[@]}
 	do
+		pssh -H "$hosts" -l $user "sed -i 's#rowsPerTx=.*#rowsPerTx=$batchSize#g' $DIR/setup" 
 
-		for test in ${tests[@]}
+		for ((thread=4; thread<=24;))
 		do
 			pssh -H "$hosts" -l $user "sed -i 's#numThreads=.*#numThreads=$thread#g' $DIR/setup" 
-			pssh -H "$hosts" -l $user "sed -i 's#runNumber=.*#runNumber=$run#g' $DIR/setup" 
-			echo "Running test $test for thread count $thread run number $run" 
-			pssh -H "$hosts" -l $user -i -t 600 "bash $DIR/$test " 
+			for test in ${tests[@]}
+			do
+				if [[ $test = "fts" ]]; then
+					pssh -H "$hosts" -l $user "sed -i 's#totalOps=.*#totalOps=5000#g' $DIR/setup" 
+				else
+					pssh -H "$hosts" -l $user "sed -i 's#totalOps=.*#totalOps=200000#g' $DIR/setup" 
+				fi
+				echo "Running test $test for thread count $thread run number $run" 
+				bash ./delete-data all
+				pssh -H "$hosts" -l $user  -t 600 "bash $DIR/$test " 
+			done
+			if [[ $thread = 1 ]]; then
+				thread=2;
+			else
+				thread=$(echo "$thread+2" | bc)
+			fi
 		done
-		if [[ $thread = 1 ]]; then
-			thread=2;
-		else
-			thread=$(echo "$thread+2" | bc)
-		fi
 	done
 done
