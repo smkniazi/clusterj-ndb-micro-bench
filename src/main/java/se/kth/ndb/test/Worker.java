@@ -284,6 +284,8 @@ public class Worker implements Runnable {
         if(microBenchType == MicroBenchType.PK_D || microBenchType == MicroBenchType.BATCH_D
         || microBenchType == MicroBenchType.PK_D_WRITE || microBenchType == MicroBenchType.BATCH_D_WRITE ){
           row = new Row(id, id, 0, 0);
+        } else if(microBenchType == MicroBenchType.PK_ND_WRITE || microBenchType == MicroBenchType.BATCH_ND_WRITE){
+          row = new Row(partitionKey, id, 0, 0);
         } else {
           row = new Row(partitionKey, id, partitionKey, partitionKey);
         }
