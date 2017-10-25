@@ -50,7 +50,7 @@ public class Worker implements Runnable {
       try {
         long startTime = System.nanoTime();
         dbSession.currentTransaction().begin();
-        readData(dbSession);
+        performOperation(dbSession);
         dbSession.currentTransaction().commit();
         long opExeTime=(System.nanoTime()-startTime);
         latency.addValue(opExeTime);
@@ -73,7 +73,7 @@ public class Worker implements Runnable {
   protected void finalize() throws Throwable {
   }
 
-  public void readData(Session session) throws Exception {
+  public void performOperation(Session session) throws Exception {
     switch (microBenchType) {
       case PK_D:
       case PK_ND:
@@ -92,14 +92,41 @@ public class Worker implements Runnable {
       case FTS:
         ftsRead(session);
         return;
+      case PK_D_WRITE:
+      case PK_ND_WRIE:
+        pkWrite(session);
+        return;
+      case BATCH_D_WRITE:
+      case BATCH_ND_WRIE:
+        batchWrite(session);
+        return;
       default:
         throw new IllegalStateException("Micro bench mark not supported");
     }
   }
 
+  void pkWrite(Session session){
+    List<Table> readRows = pkRead(session);
 
-  void pkRead(Session session) {
+    for(Table row : readRows){
+      row.setData1(row.getData1()+1);
+      row.setData2(row.getData2()+1);
+    }
+    session.updatePersistentAll(readRows);
+  }
 
+  void batchWrite(Session session){
+    List<Table> readRows = batchRead(session);
+    for(Table row : readRows){
+      row.setData1(row.getData1()+1);
+      row.setData2(row.getData2()+1);
+    }
+    session.updatePersistentAll(readRows);
+  }
+
+
+  List<Table> pkRead(Session session) {
+    ArrayList<Table> readRows = new ArrayList<Table>();
     boolean partitionKeyHintSet = false;
     int index = rand.nextInt(dataSet.size());
     Set<Row> set  = dataSet.get(index);
@@ -118,14 +145,16 @@ public class Worker implements Runnable {
       if(dbRow == null){
         throw new IllegalStateException("Read null");
       }
+      readRows.add(dbRow);
     }
+    return readRows;
   }
 
-  void batchRead(Session session) {
+  List<Table> batchRead(Session session) {
     int index = rand.nextInt(dataSet.size());
     Set<Row> set  = dataSet.get(index);
 
-    List<Object> batch = new ArrayList<Object>();
+    List<Table> batch = new ArrayList<Table>();
     for (Row row : set) {
       Table dbRow = getTableInstance(session);
       dbRow.setId(row.getId());
@@ -152,6 +181,7 @@ public class Worker implements Runnable {
         throw new IllegalStateException("Wrong data read");
       }
     }
+    return  batch;
   }
 
   void ppisRead(Session session) {
@@ -228,7 +258,6 @@ public class Worker implements Runnable {
   }
 
 
-
   protected void saveSet(Session session, Set<Row> rows){
     session.currentTransaction().begin();
     for(Row row : rows){
@@ -243,11 +272,6 @@ public class Worker implements Runnable {
   }
 
   protected void writeData() throws Exception {
-
-    if(microBenchType == MicroBenchType.PK_D || microBenchType == MicroBenchType.BATCH_D){
-        throw new UnsupportedOperationException("Not implemented yet");
-    }
-
     Session session = sf.getSession();
 
     for ( int i = 0; i < 100;){
@@ -256,7 +280,13 @@ public class Worker implements Runnable {
       Set<Row> rows = new HashSet<Row>();
       for(int j = 0; j < rowsPerTx; j++) {
         int id = rand.nextInt();
-        Row row = new Row(partitionKey, id, partitionKey, partitionKey);
+        Row row  = null;
+        if(microBenchType == MicroBenchType.PK_D || microBenchType == MicroBenchType.BATCH_D
+        || microBenchType == MicroBenchType.PK_D_WRITE || microBenchType == MicroBenchType.BATCH_D_WRITE ){
+          row = new Row(id, id, id, id);
+        } else {
+          row = new Row(partitionKey, id, partitionKey, partitionKey);
+        }
         rows.add(row);
       }
 

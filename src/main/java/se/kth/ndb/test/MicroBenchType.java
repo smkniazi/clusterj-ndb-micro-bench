@@ -7,7 +7,11 @@ public enum MicroBenchType {
   BATCH_ND ("BATCH_ND"),
   PPIS("PPIS"),
   IS("IS"),
-  FTS("FTS");
+  FTS("FTS"),
+  PK_D_WRITE("PK_D_WRITE"),
+  PK_ND_WRIE("PK_D_WRITE"),
+  BATCH_D_WRITE("BATCH_D_WRITE"),
+  BATCH_ND_WRIE("BATCH_ND_WRIE");
   private final String name;
   private MicroBenchType(String name){
     this.name = name;
