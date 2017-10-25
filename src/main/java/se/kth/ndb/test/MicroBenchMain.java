@@ -163,6 +163,14 @@ public class MicroBenchMain {
         microBenchType = MicroBenchType.IS;
       } else if (microBenchTypeStr.compareToIgnoreCase("FTS") == 0) {
         microBenchType = MicroBenchType.FTS;
+      } else if (microBenchTypeStr.compareToIgnoreCase("PK_D_WRITE") == 0) {
+        microBenchType = MicroBenchType.PK_D_WRITE;
+      } else if (microBenchTypeStr.compareToIgnoreCase("PK_ND_WRIE") == 0) {
+        microBenchType = MicroBenchType.PK_ND_WRIE;
+      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH_D_WRITE") == 0) {
+        microBenchType = MicroBenchType.BATCH_D_WRITE;
+      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH_ND_WRIE") == 0) {
+        microBenchType = MicroBenchType.BATCH_ND_WRIE;
       } else {
         if(!createDummyData) {
           System.out.println("Wrong bench mark type");
