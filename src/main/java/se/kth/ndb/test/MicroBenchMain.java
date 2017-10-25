@@ -64,6 +64,9 @@ public class MicroBenchMain {
   @Option(name = "-numDummyRows", usage = "Number of dummy rows to create")
   static private int numDummyRows = 1000;
 
+  @Option(name = "-updateData", usage = "Update Data")
+  static private boolean updateData = false;
+
   private AtomicInteger successfulOps = new AtomicInteger(0);
   private AtomicInteger failedOps = new AtomicInteger(0);
   private AtomicInteger speed = new AtomicInteger(0);
@@ -163,18 +166,6 @@ public class MicroBenchMain {
         microBenchType = MicroBenchType.IS;
       } else if (microBenchTypeStr.compareToIgnoreCase(MicroBenchType.FTS.toString()) == 0) {
         microBenchType = MicroBenchType.FTS;
-      } else if (microBenchTypeStr.compareToIgnoreCase("PK_WRITE") == 0) {
-        if(distributedPKOps) {
-          microBenchType = MicroBenchType.PK_D_WRITE;
-        }else{
-          microBenchType = MicroBenchType.PK_ND_WRITE;
-        }
-      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH_WRITE") == 0) {
-        if(distributedPKOps) {
-          microBenchType = MicroBenchType.BATCH_D_WRITE;
-        }else{
-          microBenchType = MicroBenchType.BATCH_ND_WRITE;
-        }
       } else {
         if(!createDummyData) {
           System.out.println("Wrong bench mark type");
@@ -247,7 +238,7 @@ public class MicroBenchMain {
     for (int i = 0; i < numThreads; i++) {
       Worker worker = new Worker(successfulOps, failedOps, speed,
               maxOperationsToPerform, microBenchType, sf, rowsPerTx, distributedPKOps, lockMode,
-              latency);
+              latency, updateData);
       workers[i] = worker;
     }
   }

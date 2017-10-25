@@ -21,16 +21,18 @@ public class Worker implements Runnable {
   final SessionFactory sf;
   final int rowsPerTx;
   final boolean distributedPKOps;
+  final boolean updateRows;
   final LockMode lockMode;
   final SynchronizedDescriptiveStatistics latency;
   Random rand = new Random(System.nanoTime());
+  int counter = 0;
 
   final List<Set<Row>> dataSet = new ArrayList<Set<Row>>();
 
   public Worker(AtomicInteger successfulOps, AtomicInteger failedOps,
                 AtomicInteger speed, long maxOperationsToPerform, MicroBenchType microBenchType, SessionFactory sf,
                 int rowsPerTx, boolean distributedPKOps, LockMode lockMode,
-                SynchronizedDescriptiveStatistics lagency) {
+                SynchronizedDescriptiveStatistics lagency, boolean updateRows) {
     this.successfulOps = successfulOps;
     this.failedOps = failedOps;
     this.speed = speed;
@@ -41,6 +43,7 @@ public class Worker implements Runnable {
     this.distributedPKOps = distributedPKOps;
     this.lockMode = lockMode;
     this.latency = lagency;
+    this.updateRows = updateRows;
   }
 
   @Override
@@ -77,53 +80,36 @@ public class Worker implements Runnable {
     switch (microBenchType) {
       case PK_D:
       case PK_ND:
-        pkRead(session);
+        pkTest(session);
         return;
       case BATCH_D:
       case BATCH_ND:
-        batchRead(session);
+        batchTest(session);
         return;
       case PPIS:
-        ppisRead(session);
+        ppisTest(session);
         return;
       case IS:
-        isRead(session);
+        isTest(session);
         return;
       case FTS:
-        ftsRead(session);
-        return;
-      case PK_D_WRITE:
-      case PK_ND_WRITE:
-        pkWrite(session);
-        return;
-      case BATCH_D_WRITE:
-      case BATCH_ND_WRITE:
-        batchWrite(session);
+        ftsTest(session);
         return;
       default:
         throw new IllegalStateException("Micro bench mark not supported");
     }
   }
 
-  void pkWrite(Session session){
+  void pkTest(Session session){
     List<Table> readRows = pkRead(session);
-
-    for(Table row : readRows){
-      row.setData1(row.getData1()+1);
-      row.setData2(row.getData2()+1);
+    if(updateRows){
+      for(Table row : readRows){
+        row.setData1(counter++);
+        row.setData2(counter++);
+      }
+      session.updatePersistentAll(readRows);
     }
-    session.updatePersistentAll(readRows);
   }
-
-  void batchWrite(Session session){
-    List<Table> readRows = batchRead(session);
-    for(Table row : readRows){
-      row.setData1(row.getData1()+1);
-      row.setData2(row.getData2()+1);
-    }
-    session.updatePersistentAll(readRows);
-  }
-
 
   List<Table> pkRead(Session session) {
     ArrayList<Table> readRows = new ArrayList<Table>();
@@ -148,6 +134,17 @@ public class Worker implements Runnable {
       readRows.add(dbRow);
     }
     return readRows;
+  }
+
+  void batchTest(Session session){
+    List<Table> readRows = batchRead(session);
+    if(updateRows){
+      for(Table row : readRows){
+        row.setData1(counter++);
+        row.setData2(counter++);
+      }
+      session.updatePersistentAll(readRows);
+    }
   }
 
   List<Table> batchRead(Session session) {
@@ -184,7 +181,18 @@ public class Worker implements Runnable {
     return  batch;
   }
 
-  void ppisRead(Session session) {
+  void ppisTest(Session session){
+    List<Table> readRows = ppisRead(session);
+    if(updateRows){
+      for(Table row : readRows){
+        row.setData1(counter++);
+        row.setData2(counter++);
+      }
+      session.updatePersistentAll(readRows);
+    }
+  }
+
+  List<Table> ppisRead(Session session) {
     int index = rand.nextInt(dataSet.size());
     Set<Row> set  = dataSet.get(index);
 
@@ -209,9 +217,21 @@ public class Worker implements Runnable {
     if(lists.size() != rowsPerTx){
       throw new IllegalStateException("Wrong number of rows read. Expecting: "+rowsPerTx+" Got: "+ lists.size());
     }
+
+    return lists;
   }
 
-  void isRead(Session session) {
+  void isTest(Session session){
+    List<Table> readRows = isRead(session);
+    if(updateRows){
+      for(Table row : readRows){
+        row.setData2(counter++);
+      }
+      session.updatePersistentAll(readRows);
+    }
+  }
+
+  List<Table> isRead(Session session) {
     int index = rand.nextInt(dataSet.size());
     Set<Row> set  = dataSet.get(index);
 
@@ -232,9 +252,20 @@ public class Worker implements Runnable {
     if(lists.size() != rowsPerTx){
       throw new IllegalStateException("Wrong number of rows read");
     }
+    return lists;
   }
 
-  void ftsRead(Session session) {
+  void ftsTest(Session session){
+    List<Table> readRows = ftsRead(session);
+    if(updateRows){
+      for(Table row : readRows){
+        row.setData1(counter++);
+      }
+      session.updatePersistentAll(readRows);
+    }
+  }
+
+  List<Table> ftsRead(Session session) {
     int index = rand.nextInt(dataSet.size());
     Set<Row> set  = dataSet.get(index);
 
@@ -255,6 +286,8 @@ public class Worker implements Runnable {
     if(lists.size() != rowsPerTx){
       throw new IllegalStateException("Wrong number of rows read");
     }
+
+    return lists;
   }
 
 
@@ -281,11 +314,8 @@ public class Worker implements Runnable {
       for(int j = 0; j < rowsPerTx; j++) {
         int id = rand.nextInt();
         Row row  = null;
-        if(microBenchType == MicroBenchType.PK_D || microBenchType == MicroBenchType.BATCH_D
-        || microBenchType == MicroBenchType.PK_D_WRITE || microBenchType == MicroBenchType.BATCH_D_WRITE ){
-          row = new Row(id, id, 0, 0);
-        } else if(microBenchType == MicroBenchType.PK_ND_WRITE || microBenchType == MicroBenchType.BATCH_ND_WRITE){
-          row = new Row(partitionKey, id, 0, 0);
+        if(microBenchType == MicroBenchType.PK_D || microBenchType == MicroBenchType.BATCH_D){
+          row = new Row(id, id, partitionKey, partitionKey);
         } else {
           row = new Row(partitionKey, id, partitionKey, partitionKey);
         }

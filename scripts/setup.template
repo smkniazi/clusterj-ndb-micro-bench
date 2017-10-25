@@ -11,3 +11,5 @@ totalOps=
 #un comment if you want to disable (y/n) prompt before starting the experiment
 #skipPrompt="-skipPrompt"
 runNumber=
+#un comment if you want enable updating the data 
+#updateData="-updateData"
