@@ -93,11 +93,11 @@ public class Worker implements Runnable {
         ftsRead(session);
         return;
       case PK_D_WRITE:
-      case PK_ND_WRIE:
+      case PK_ND_WRITE:
         pkWrite(session);
         return;
       case BATCH_D_WRITE:
-      case BATCH_ND_WRIE:
+      case BATCH_ND_WRITE:
         batchWrite(session);
         return;
       default:

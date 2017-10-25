@@ -157,20 +157,24 @@ public class MicroBenchMain {
         }else{
           microBenchType = MicroBenchType.BATCH_ND;
         }
-      } else if (microBenchTypeStr.compareToIgnoreCase("PPIS") == 0) {
+      } else if (microBenchTypeStr.compareToIgnoreCase(MicroBenchType.PPIS.toString()) == 0) {
         microBenchType = MicroBenchType.PPIS;
-      } else if (microBenchTypeStr.compareToIgnoreCase("IS") == 0) {
+      } else if (microBenchTypeStr.compareToIgnoreCase(MicroBenchType.IS.toString()) == 0) {
         microBenchType = MicroBenchType.IS;
-      } else if (microBenchTypeStr.compareToIgnoreCase("FTS") == 0) {
+      } else if (microBenchTypeStr.compareToIgnoreCase(MicroBenchType.FTS.toString()) == 0) {
         microBenchType = MicroBenchType.FTS;
-      } else if (microBenchTypeStr.compareToIgnoreCase("PK_D_WRITE") == 0) {
-        microBenchType = MicroBenchType.PK_D_WRITE;
-      } else if (microBenchTypeStr.compareToIgnoreCase("PK_ND_WRIE") == 0) {
-        microBenchType = MicroBenchType.PK_ND_WRIE;
-      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH_D_WRITE") == 0) {
-        microBenchType = MicroBenchType.BATCH_D_WRITE;
-      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH_ND_WRIE") == 0) {
-        microBenchType = MicroBenchType.BATCH_ND_WRIE;
+      } else if (microBenchTypeStr.compareToIgnoreCase("PK_WRITE") == 0) {
+        if(distributedPKOps) {
+          microBenchType = MicroBenchType.PK_D_WRITE;
+        }else{
+          microBenchType = MicroBenchType.PK_ND_WRITE;
+        }
+      } else if (microBenchTypeStr.compareToIgnoreCase("BATCH_WRITE") == 0) {
+        if(distributedPKOps) {
+          microBenchType = MicroBenchType.BATCH_D_WRITE;
+        }else{
+          microBenchType = MicroBenchType.BATCH_ND_WRITE;
+        }
       } else {
         if(!createDummyData) {
           System.out.println("Wrong bench mark type");
