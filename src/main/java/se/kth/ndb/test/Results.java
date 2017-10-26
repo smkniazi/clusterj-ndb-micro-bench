@@ -33,5 +33,8 @@ public interface Results {
   @Column(name = "batchSize")
   int getBatchSize();
   void setBatchSize(int rowSize);
-}
 
+  @Column(name = "updateData")
+  int getUpdateData();
+  void setUpdateData(int updateData);
+}

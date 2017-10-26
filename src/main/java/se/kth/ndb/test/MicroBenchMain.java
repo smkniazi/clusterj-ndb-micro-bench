@@ -310,6 +310,7 @@ public class MicroBenchMain {
     row.setLatency(avgLatency);
     row.setRun(runNumber);
     row.setBatchSize(rowsPerTx);
+    row.setUpdateData(updateData?1:0);
     session.makePersistent(row);
     session.currentTransaction().commit();
   }
