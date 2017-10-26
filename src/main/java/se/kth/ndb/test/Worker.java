@@ -307,7 +307,7 @@ public class Worker implements Runnable {
   protected void writeData() throws Exception {
     Session session = sf.getSession();
 
-    for ( int i = 0; i < 100;){
+    for ( int i = 0; i < 32*10;){
       int partitionKey = rand.nextInt();
 
       Set<Row> rows = new HashSet<Row>();
