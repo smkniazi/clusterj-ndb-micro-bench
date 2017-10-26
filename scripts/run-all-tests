@@ -28,8 +28,17 @@ do
 					pssh -H "$hosts" -l $user "sed -i 's#totalOps=.*#totalOps=200000#g' $DIR/setup" 
 				fi
 				echo "Running test $test for thread count $thread run number $run" 
+
+				if [[ $testUpdate = true ]]; then
+					bash ./delete-data all
+					pssh -H "$hosts" -l $user "sed -i 's#updateData=.*#updateData=\"-updateData\"#g' $DIR/setup" 
+					pssh -H "$hosts" -l $user -i  -t 600 "bash $DIR/$test " 
+				fi
+
+
+				pssh -H "$hosts" -l $user "sed -i 's#updateData=.*#updateData=\"\"#g' $DIR/setup" 
 				bash ./delete-data all
-				pssh -H "$hosts" -l $user -i  -t 600 "bash $DIR/$test " 
+				#pssh -H "$hosts" -l $user -t 600 "bash $DIR/$test " 
 			done
 			if [[ $thread = 1 ]]; then
 				thread=2;
