@@ -10,6 +10,7 @@ tests=(pk batch ppis is fts)
 path="/home/tester/salman/clusterj-ndb-micro-bench/scripts"
 batchSizes=(1 5 10 20 30)
 
+testUpdate=true
 for ((run=1; run<=3;run++))
 do
 	pssh -H "$hosts" -l $user "sed -i 's#runNumber=.*#runNumber=$run#g' $DIR/setup" 
@@ -38,7 +39,7 @@ do
 
 				pssh -H "$hosts" -l $user "sed -i 's#updateData=.*#updateData=\"\"#g' $DIR/setup" 
 				bash ./delete-data all
-				#pssh -H "$hosts" -l $user -t 600 "bash $DIR/$test " 
+				pssh -H "$hosts" -l $user -t 600 "bash $DIR/$test " 
 			done
 			if [[ $thread = 1 ]]; then
 				thread=2;
