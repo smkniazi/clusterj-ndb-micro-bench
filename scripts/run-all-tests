@@ -4,14 +4,14 @@ set -e
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 user=tester
-hosts="hadoop2 hadoop3 hadoop4 hadoop6 hadoop36"
+hosts="hadoop2 hadoop3 hadoop4 hadoop6 hadoop7 hadoop8 hadoop9 hadoop10 hadoop11 hadoop36"
 
 tests=(pk batch ppis is fts)
 path="/home/tester/salman/clusterj-ndb-micro-bench/scripts"
-batchSizes=(1 5 10 20 30)
+batchSizes=(1 5 10 20)
 
 testUpdate=true
-for ((run=1; run<=3;run++))
+for ((run=1; run<=10;run++))
 do
 	pssh -H "$hosts" -l $user "sed -i 's#runNumber=.*#runNumber=$run#g' $DIR/setup" 
 	for batchSize in ${batchSizes[@]}
@@ -33,7 +33,7 @@ do
 				if [[ $testUpdate = true ]]; then
 					bash ./delete-data all
 					pssh -H "$hosts" -l $user "sed -i 's#updateData=.*#updateData=\"-updateData\"#g' $DIR/setup" 
-					pssh -H "$hosts" -l $user -i  -t 600 "bash $DIR/$test " 
+					pssh -H "$hosts" -l $user  -t 600 "bash $DIR/$test " 
 				fi
 
 
