@@ -108,6 +108,7 @@ public class Worker implements Runnable {
         row.setData2(counter++);
       }
       session.updatePersistentAll(readRows);
+      release(session, readRows);
     }
   }
 
@@ -144,6 +145,7 @@ public class Worker implements Runnable {
         row.setData2(counter++);
       }
       session.updatePersistentAll(readRows);
+      release(session, readRows);
     }
   }
 
@@ -189,6 +191,7 @@ public class Worker implements Runnable {
         row.setData2(counter++);
       }
       session.updatePersistentAll(readRows);
+      release(session, readRows);
     }
   }
 
@@ -228,6 +231,7 @@ public class Worker implements Runnable {
         row.setData2(counter++);
       }
       session.updatePersistentAll(readRows);
+      release(session, readRows);
     }
   }
 
@@ -262,6 +266,7 @@ public class Worker implements Runnable {
         row.setData1(counter++);
       }
       session.updatePersistentAll(readRows);
+      release(session, readRows);
     }
   }
 
@@ -339,5 +344,16 @@ public class Worker implements Runnable {
   private Table getTableInstance(Session session) {
       return session.newInstance(Table.class);
   }
+
+  private void release(Session session, List<Table> rows){
+    for(Table row: rows){
+      release(session, row);
+    }
+  }
+
+  private void release(Session session, Table row){
+    session.release(row);
+  }
+
 }
 
