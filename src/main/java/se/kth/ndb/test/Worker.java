@@ -64,7 +64,7 @@ public class Worker implements Runnable {
         e.printStackTrace();
         dbSession.currentTransaction().rollback();
       } finally {
-        if (successfulOps.incrementAndGet() >= maxOperationsToPerform) {
+        if (successfulOps.get() >= maxOperationsToPerform) {
           break;
         }
       }
