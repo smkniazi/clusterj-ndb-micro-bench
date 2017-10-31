@@ -21,17 +21,17 @@ do
 			pssh -H "$hosts" -l $user "sed -i 's#numThreads=.*#numThreads=$thread#g' $DIR/setup" 
 			for test in ${tests[@]}
 			do
-				echo "Running test $test for thread count $thread run number $run" 
-
 				if [[ $testUpdate = true ]]; then
 					bash ./delete-data all
 					pssh -H "$hosts" -l $user "sed -i 's#updateData=.*#updateData=\"-updateData\"#g' $DIR/setup" 
+					echo "Running test:$test  for thread count: $thread  and run number: $run with data updates" 
 					pssh -H "$hosts" -l $user -P  -t 600 "bash $DIR/$test " 
 				fi
 
 
 				pssh -H "$hosts" -l $user "sed -i 's#updateData=.*#updateData=\"\"#g' $DIR/setup" 
 				bash ./delete-data all
+				echo "Running test:$test  for thread count: $thread  and run number: $run without data updates" 
 				pssh -H "$hosts" -l $user -P -t 600 "bash $DIR/$test " 
 			done
 			thread=$(echo "$thread+1" | bc)
