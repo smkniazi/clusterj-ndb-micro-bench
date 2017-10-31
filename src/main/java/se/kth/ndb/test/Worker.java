@@ -364,7 +364,7 @@ public class Worker implements Callable {
     if ((curTime - lastPrintTime) > 5000) {
       long timeElapsed = (System.currentTimeMillis() - startTime);
       double speed = (successfulOps.get()/(double)timeElapsed)*1000;
-      System.out.println("Successful Ops: " + successfulOps +"Speed: " + speed + " ops/sec.");
+      System.out.println("Successful Ops: " + successfulOps +"\tSpeed: " + speed + " ops/sec.");
       lastPrintTime = System.currentTimeMillis();
     }
   }
