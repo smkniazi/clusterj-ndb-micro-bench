@@ -50,6 +50,7 @@ public class Worker implements Callable {
   public Object call() {
     Session dbSession = sf.getSession();
     bmStartTime = System.currentTimeMillis();
+    lastPrintTime = bmStartTime;
     while (true) {
       try {
         long startTime = System.nanoTime();

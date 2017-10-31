@@ -113,6 +113,7 @@ public class MicroBenchMain {
     blueColoredText(msg);
     writeToFile("result.txt", true, msg);
     saveResultsToDB(avgSpeed, avgLatency);
+    executor.shutdown();
 
   }
 
