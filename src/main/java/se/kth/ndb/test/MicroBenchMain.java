@@ -12,6 +12,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.NumberFormat;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -69,7 +71,6 @@ public class MicroBenchMain {
 
   private AtomicInteger successfulOps = new AtomicInteger(0);
   private AtomicInteger failedOps = new AtomicInteger(0);
-  private AtomicInteger speed = new AtomicInteger(0);
   private static long lastOutput = 0;
   private SynchronizedDescriptiveStatistics latency = new SynchronizedDescriptiveStatistics();
 
@@ -79,7 +80,7 @@ public class MicroBenchMain {
   @Option(name = "-help", usage = "Print usages")
   private boolean help = false;
 
-  private Worker[] workers;
+  private List workers = new ArrayList<Worker>();
 
 
   public void startApplication(String[] args) throws Exception {
@@ -204,8 +205,8 @@ public class MicroBenchMain {
   }
 
   public void writeDummyData() throws InterruptedException, IOException {
+    AtomicInteger speed = new AtomicInteger(0);
     if(createDummyData){
-      workers = new Worker[numThreads];
       executor = Executors.newFixedThreadPool(numThreads);
 
       int rowsPerThread = numDummyRows / numThreads;
@@ -232,63 +233,27 @@ public class MicroBenchMain {
   }
 
   public void createWorkers() throws InterruptedException, IOException {
-    workers = new Worker[numThreads];
     executor = Executors.newFixedThreadPool(numThreads);
 
     for (int i = 0; i < numThreads; i++) {
-      Worker worker = new Worker(successfulOps, failedOps, speed,
+      Worker worker = new Worker(successfulOps, failedOps,
               benchmarkDuration, microBenchType, sf, rowsPerTx, distributedPKOps, lockMode,
               latency, updateData);
-      workers[i] = worker;
+      workers.add(worker);
     }
   }
 
 
   public void writeData() throws Exception {
-    for (int i = 0; i < numThreads; i++) {
-      workers[i].writeData();
+    for (Object worker  : workers){
+      ((Worker)worker).writeData();
     }
   }
 
   public void startMicroBench() throws InterruptedException, IOException {
-    for (int i = 0; i < numThreads; i++) {
-      executor.execute(workers[i]);
-    }
-    executor.shutdown();
-    long startTime = System.currentTimeMillis();
-    while (!executor.isTerminated()) {
-      Thread.sleep(1000);
-      printMemUsageAndSpeed();
-    }
+    executor.invokeAll(workers); //blocking call
   }
 
-  private void printMemUsageAndSpeed() {
-    long curTime = System.currentTimeMillis();
-    if ((curTime - lastOutput) > 1000) {
-      //StringBuilder sb = systemStats();
-      StringBuilder sb = new StringBuilder("");
-      sb.append("Speed: " + speed + " ops/sec. Successful Ops: " + successfulOps + " Failed Ops: " + failedOps);
-      speed.set(0);
-      System.out.println(sb.toString());
-      lastOutput = curTime;
-    }
-  }
-
-  public static StringBuilder systemStats() {
-    Runtime runtime = Runtime.getRuntime();
-    NumberFormat format = NumberFormat.getInstance();
-    StringBuilder sb = new StringBuilder();
-    long maxMemory = runtime.maxMemory();
-    long allocatedMemory = runtime.totalMemory();
-    long freeMemory = runtime.freeMemory();
-
-    sb.append("\nFree Mem: " + format.format(freeMemory / (1024 * 1024)) + " MB. ");
-    sb.append("Allocated Mem: " + format.format(allocatedMemory / (1024 * 1024)) + " MB. ");
-    sb.append("Max Mem: " + format.format(maxMemory / (1024 * 1024)) + " MB. ");
-    sb.append("Tot Free Mem: " + format.format((freeMemory + (maxMemory - allocatedMemory)) / (1024 * 1024)) + " MB. ");
-    sb.append("Direct Mem: " + sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed() / (1024 * 1024) + " MB. \n");
-    return sb;
-  }
 
   protected void redColoredText(String msg) {
     System.out.println((char) 27 + "[31m" + msg);

@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Worker implements Runnable {
   final AtomicInteger successfulOps;
   final AtomicInteger failedOps;
-  final AtomicInteger speed;
   final long benchMarkDuration;
   final MicroBenchType microBenchType;
   final SessionFactory sf;
@@ -26,16 +25,16 @@ public class Worker implements Runnable {
   final SynchronizedDescriptiveStatistics latency;
   Random rand = new Random(System.nanoTime());
   int counter = 0;
+  long bmStartTime = 0;
 
   final List<Set<Row>> dataSet = new ArrayList<Set<Row>>();
 
   public Worker(AtomicInteger successfulOps, AtomicInteger failedOps,
-                AtomicInteger speed, long maxOperationsToPerform, MicroBenchType benchmarkDuration, SessionFactory sf,
+                long maxOperationsToPerform, MicroBenchType benchmarkDuration, SessionFactory sf,
                 int rowsPerTx, boolean distributedPKOps, LockMode lockMode,
                 SynchronizedDescriptiveStatistics lagency, boolean updateRows) {
     this.successfulOps = successfulOps;
     this.failedOps = failedOps;
-    this.speed = speed;
     this.benchMarkDuration = maxOperationsToPerform;
     this.microBenchType = benchmarkDuration;
     this.sf = sf;
@@ -49,7 +48,7 @@ public class Worker implements Runnable {
   @Override
   public void run() {
     Session dbSession = sf.getSession();
-    long bmStartTime = System.currentTimeMillis();
+    bmStartTime = System.currentTimeMillis();
     while (true) {
       try {
         long startTime = System.nanoTime();
@@ -59,7 +58,7 @@ public class Worker implements Runnable {
         long opExeTime=(System.nanoTime()-startTime);
         latency.addValue(opExeTime);
         successfulOps.incrementAndGet();
-        speed.incrementAndGet();
+        printSpeed(bmStartTime,successfulOps);
       } catch (Throwable e) {
         failedOps.incrementAndGet();
         e.printStackTrace();
@@ -354,6 +353,17 @@ public class Worker implements Runnable {
 
   private void release(Session session, Table row){
     session.release(row);
+  }
+
+  static long lastPrintTime = System.currentTimeMillis();
+  private synchronized  static void printSpeed(long startTime, AtomicInteger successfulOps) {
+    long curTime = System.currentTimeMillis();
+    if ((curTime - lastPrintTime) > 5000) {
+      long timeElapsed = (System.currentTimeMillis() - startTime);
+      double speed = (successfulOps.get()/(double)timeElapsed)*1000;
+      System.out.println("Speed: " + speed + " ops/sec. \t\t Successful Ops: " + successfulOps );
+      lastPrintTime = System.currentTimeMillis();
+    }
   }
 
 }
