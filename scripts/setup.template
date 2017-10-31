@@ -7,7 +7,7 @@ mysqlPort=
 clientId=
 rowsPerTx=
 numThreads=
-totalOps=
+bmDuration=
 #un comment if you want to disable (y/n) prompt before starting the experiment
 #skipPrompt="-skipPrompt"
 runNumber=

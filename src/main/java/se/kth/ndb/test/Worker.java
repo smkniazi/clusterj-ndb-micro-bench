@@ -16,7 +16,7 @@ public class Worker implements Runnable {
   final AtomicInteger successfulOps;
   final AtomicInteger failedOps;
   final AtomicInteger speed;
-  final long maxOperationsToPerform;
+  final long benchMarkDuration;
   final MicroBenchType microBenchType;
   final SessionFactory sf;
   final int rowsPerTx;
@@ -30,14 +30,14 @@ public class Worker implements Runnable {
   final List<Set<Row>> dataSet = new ArrayList<Set<Row>>();
 
   public Worker(AtomicInteger successfulOps, AtomicInteger failedOps,
-                AtomicInteger speed, long maxOperationsToPerform, MicroBenchType microBenchType, SessionFactory sf,
+                AtomicInteger speed, long maxOperationsToPerform, MicroBenchType benchmarkDuration, SessionFactory sf,
                 int rowsPerTx, boolean distributedPKOps, LockMode lockMode,
                 SynchronizedDescriptiveStatistics lagency, boolean updateRows) {
     this.successfulOps = successfulOps;
     this.failedOps = failedOps;
     this.speed = speed;
-    this.maxOperationsToPerform = maxOperationsToPerform;
-    this.microBenchType = microBenchType;
+    this.benchMarkDuration = maxOperationsToPerform;
+    this.microBenchType = benchmarkDuration;
     this.sf = sf;
     this.rowsPerTx = rowsPerTx;
     this.distributedPKOps = distributedPKOps;
@@ -49,6 +49,7 @@ public class Worker implements Runnable {
   @Override
   public void run() {
     Session dbSession = sf.getSession();
+    long bmStartTime = System.currentTimeMillis();
     while (true) {
       try {
         long startTime = System.nanoTime();
@@ -64,7 +65,7 @@ public class Worker implements Runnable {
         e.printStackTrace();
         dbSession.currentTransaction().rollback();
       } finally {
-        if ((successfulOps.get()+failedOps.get()) >= maxOperationsToPerform) {
+        if ((System.currentTimeMillis() - bmStartTime) > benchMarkDuration) {
           break;
         }
       }

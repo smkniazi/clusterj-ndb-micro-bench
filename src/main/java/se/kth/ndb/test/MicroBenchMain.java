@@ -46,8 +46,8 @@ public class MicroBenchMain {
   @Option(name = "-rowsPerTx", usage = "Number of rows that are read in each transaction")
   static private int rowsPerTx = 1;
 
-  @Option(name = "-maxOperationsToPerform", usage = "Total operations to perform. Default is 1000. Recommended 1 million or more")
-  static private long maxOperationsToPerform = 100;
+  @Option(name = "-bmDuration", usage = "For how long the bench mark should run. Time in ms")
+  static private long benchmarkDuration = 10000;
 
   @Option(name = "-clientId", usage = "Id of this application. In case of distributed deployment each instance of this benchmark should have a unique id")
   static private int clientId = 0;
@@ -237,7 +237,7 @@ public class MicroBenchMain {
 
     for (int i = 0; i < numThreads; i++) {
       Worker worker = new Worker(successfulOps, failedOps, speed,
-              maxOperationsToPerform, microBenchType, sf, rowsPerTx, distributedPKOps, lockMode,
+              benchmarkDuration, microBenchType, sf, rowsPerTx, distributedPKOps, lockMode,
               latency, updateData);
       workers[i] = worker;
     }

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 user=tester
 hosts="hadoop2 hadoop3 hadoop4 hadoop6 hadoop7 hadoop8 hadoop9 hadoop10 hadoop11 hadoop36"
@@ -18,34 +16,33 @@ do
 	do
 		pssh -H "$hosts" -l $user "sed -i 's#rowsPerTx=.*#rowsPerTx=$batchSize#g' $DIR/setup" 
 
-		for ((thread=6; thread<=30;))
+		for ((thread=1; thread<=20;))
 		do
 			pssh -H "$hosts" -l $user "sed -i 's#numThreads=.*#numThreads=$thread#g' $DIR/setup" 
 			for test in ${tests[@]}
 			do
-				if [[ $test = "fts" ]]; then
-					pssh -H "$hosts" -l $user "sed -i 's#totalOps=.*#totalOps=5000#g' $DIR/setup" 
-				else
-					pssh -H "$hosts" -l $user "sed -i 's#totalOps=.*#totalOps=200000#g' $DIR/setup" 
-				fi
 				echo "Running test $test for thread count $thread run number $run" 
 
 				if [[ $testUpdate = true ]]; then
 					bash ./delete-data all
 					pssh -H "$hosts" -l $user "sed -i 's#updateData=.*#updateData=\"-updateData\"#g' $DIR/setup" 
-					pssh -H "$hosts" -l $user  -t 600 "bash $DIR/$test " 
+					pssh -H "$hosts" -l $user -P  -t 600 "bash $DIR/$test " 
 				fi
 
 
 				pssh -H "$hosts" -l $user "sed -i 's#updateData=.*#updateData=\"\"#g' $DIR/setup" 
 				bash ./delete-data all
-				pssh -H "$hosts" -l $user -t 600 "bash $DIR/$test " 
+				pssh -H "$hosts" -l $user -P -t 600 "bash $DIR/$test " 
 			done
-			if [[ $thread = 1 ]]; then
-				thread=2;
-			else
-				thread=$(echo "$thread+2" | bc)
-			fi
+			thread=$(echo "$thread+1" | bc)
 		done
 	done
 done
+
+
+
+#if [[ $thread = 1 ]]; then
+#	thread=2;
+#else
+#	thread=$(echo "$thread+1" | bc)
+#fi
