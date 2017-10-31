@@ -10,9 +10,10 @@ import com.mysql.clusterj.query.QueryDomainType;
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class Worker implements Runnable {
+public class Worker implements Callable {
   final AtomicInteger successfulOps;
   final AtomicInteger failedOps;
   final long benchMarkDuration;
@@ -46,7 +47,7 @@ public class Worker implements Runnable {
   }
 
   @Override
-  public void run() {
+  public Object call() {
     Session dbSession = sf.getSession();
     bmStartTime = System.currentTimeMillis();
     while (true) {
@@ -70,6 +71,7 @@ public class Worker implements Runnable {
       }
     }
     dbSession.close();
+    return null;
   }
 
   @Override
