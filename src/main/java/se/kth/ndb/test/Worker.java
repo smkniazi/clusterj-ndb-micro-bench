@@ -334,6 +334,7 @@ public class Worker implements Callable {
         saveSet(session, rows);
       } catch (Exception e){
           e.printStackTrace();
+//          System.exit(0);
         continue;
       }
       dataSet.add(rows);
