@@ -1,0 +1,10 @@
+#!/bin/bash
+
+pushd . 
+cd ..
+mvn assembly:assembly 
+cd ..
+tar cjf clusterj-ndb-micro-bench.tar.gz clusterj-ndb-micro-bench
+scp clusterj-ndb-micro-bench.tar.gz salman@cloud18.sics.se:/home/salman/
+
+popd

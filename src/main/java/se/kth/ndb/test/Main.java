@@ -11,8 +11,9 @@ public class Main {
 
   public static void test() throws Exception {
     String argv[] = {"-schema", "test", "-dbHost", "localhost:1186", "-rowsPerTx", "10",
-                    "-numThreads", "2", "-microBenchType","PK", "-distributedPKOps",
-            "-bmDuration", "10000"};
+                    "-numThreads", "1", "-microBenchType","RANGE_SCAN",
+            "-bmDuration", "10000", "-rangScanMaxRowID", "10000", "-rangScanSize", "100",
+            "-skipPrompt"};
     new MicroBenchMain().startApplication(argv);
   }
 }

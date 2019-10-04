@@ -1,0 +1,8 @@
+#!/bin/bash
+
+cd ../..
+rm -rf clusterj-ndb-micro-bench*
+scp -r  salman@cloud18.sics.se:/home/salman/clusterj-ndb-micro-bench.tar.gz . ; tar xf clusterj-ndb-micro-bench.tar.gz
+cd .
+
+

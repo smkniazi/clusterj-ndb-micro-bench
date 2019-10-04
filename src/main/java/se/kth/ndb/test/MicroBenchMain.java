@@ -19,6 +19,7 @@ import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatistics;
 
 public class MicroBenchMain {
@@ -69,6 +70,12 @@ public class MicroBenchMain {
   @Option(name = "-updateData", usage = "Update Data")
   static private boolean updateData = false;
 
+  @Option(name = "-rangScanMaxRowID", usage = "Range scan max row ID")
+  static private int rangScanMaxRowID = 10000;
+
+  @Option(name = "-rangScanSize", usage = "Range scan size")
+  static private int rangScanSize = 100;
+
   private AtomicInteger successfulOps = new AtomicInteger(0);
   private AtomicInteger failedOps = new AtomicInteger(0);
   private static long lastOutput = 0;
@@ -88,33 +95,35 @@ public class MicroBenchMain {
 
     setUpDBConnection();
 
-    System.out.println("Test type "+microBenchType);
-    if(createDummyData) {
+    System.out.println("Test type " + microBenchType);
+    if (createDummyData) {
       writeDummyData();
     }
 
     createWorkers();
 
-    writeData();
+    //manually create the data for this test
+    if (microBenchType != MicroBenchType.RANGE_SCAN){
+      writeData();
+    }
 
-    if(!skipPrompt) {
+    if (!skipPrompt) {
       System.out.println("Press enter to start execution");
       System.in.read();
     }
 
     long startTime = System.currentTimeMillis();
     startMicroBench();
-    long totExeTime = (System.currentTimeMillis()-startTime);
+    long totExeTime = (System.currentTimeMillis() - startTime);
 
-    long avgSpeed = (long)(((double)successfulOps.get()/(double)totExeTime)*1000);
-    double avgLatency = latency.getMean()/1000000;
+    long avgSpeed = (long) (((double) successfulOps.get() / (double) totExeTime) * 1000);
+    double avgLatency = latency.getMean() / 1000000;
 
-    String msg ="Results: "+ microBenchType+" NumThreads: "+numThreads+" Speed: "+avgSpeed+" ops/sec.\t\tAvg Op Latency: "+avgLatency;
+    String msg = "Results: " + microBenchType + " NumThreads: " + numThreads + " Speed: " + avgSpeed + " ops/sec.\t\tAvg Op Latency: " + avgLatency;
     blueColoredText(msg);
     writeToFile("result.txt", true, msg);
     saveResultsToDB(avgSpeed, avgLatency);
     executor.shutdown();
-
   }
 
   void writeToFile(String filePath, boolean append, String msg) throws IOException {
@@ -145,9 +154,9 @@ public class MicroBenchMain {
           System.out.println("Seletect One. Distributed/Non Distributed batch Operations");
           showHelp(parser, true);
         }
-        if(distributedPKOps) {
+        if (distributedPKOps) {
           microBenchType = MicroBenchType.PK_D;
-        }else{
+        } else {
           microBenchType = MicroBenchType.PK_ND;
         }
       } else if (microBenchTypeStr.compareToIgnoreCase("BATCH") == 0) {
@@ -157,9 +166,9 @@ public class MicroBenchMain {
           showHelp(parser, true);
         }
 
-        if(distributedPKOps) {
+        if (distributedPKOps) {
           microBenchType = MicroBenchType.BATCH_D;
-        }else{
+        } else {
           microBenchType = MicroBenchType.BATCH_ND;
         }
       } else if (microBenchTypeStr.compareToIgnoreCase(MicroBenchType.PPIS.toString()) == 0) {
@@ -168,8 +177,11 @@ public class MicroBenchMain {
         microBenchType = MicroBenchType.IS;
       } else if (microBenchTypeStr.compareToIgnoreCase(MicroBenchType.FTS.toString()) == 0) {
         microBenchType = MicroBenchType.FTS;
+      } else if (microBenchTypeStr.compareToIgnoreCase(MicroBenchType.RANGE_SCAN.toString()) == 0) {
+        microBenchType = MicroBenchType.RANGE_SCAN;
+        assert rangScanSize > rangScanMaxRowID;
       } else {
-        if(!createDummyData) {
+        if (!createDummyData) {
           System.out.println("Wrong bench mark type");
           showHelp(parser, true);
         }
@@ -207,16 +219,16 @@ public class MicroBenchMain {
 
   public void writeDummyData() throws InterruptedException, IOException {
     AtomicInteger speed = new AtomicInteger(0);
-    if(createDummyData){
+    if (createDummyData) {
       executor = Executors.newFixedThreadPool(numThreads);
 
       int rowsPerThread = numDummyRows / numThreads;
-      int rowsStartId = 10000000;
+      int rowsStartId = 0;
       DummyDataWriter[] workers = new DummyDataWriter[numThreads];
-      for (int i = 0; i < numThreads; i++){
-        int threadRowsStartId = (rowsStartId+ (i*rowsPerThread));
+      for (int i = 0; i < numThreads; i++) {
+        int threadRowsStartId = (rowsStartId + (i * rowsPerThread));
         int threadRowsEndId = threadRowsStartId + rowsPerThread;
-        workers[i] = ( new DummyDataWriter(0,successfulOps,speed,sf,threadRowsStartId, threadRowsEndId ));
+        workers[i] = (new DummyDataWriter(0, successfulOps, speed, sf, threadRowsStartId, threadRowsEndId));
       }
 
       for (int i = 0; i < numThreads; i++) {
@@ -226,7 +238,7 @@ public class MicroBenchMain {
       long startTime = System.currentTimeMillis();
       while (!executor.isTerminated()) {
         Thread.sleep(1000);
-        System.out.println("Writing speed: "+speed+" ops/sec");
+        System.out.println("Writing speed: " + speed + " ops/sec");
         speed.set(0);
       }
       System.exit(0);
@@ -239,15 +251,15 @@ public class MicroBenchMain {
     for (int i = 0; i < numThreads; i++) {
       Worker worker = new Worker(successfulOps, failedOps,
               benchmarkDuration, microBenchType, sf, rowsPerTx, distributedPKOps, lockMode,
-              latency, updateData);
+              latency, updateData, rangScanMaxRowID, rangScanSize);
       workers.add(worker);
     }
   }
 
 
   public void writeData() throws Exception {
-    for (Object worker  : workers){
-      ((Worker)worker).writeData();
+    for (Object worker : workers) {
+      ((Worker) worker).writeData();
     }
   }
 
@@ -266,7 +278,7 @@ public class MicroBenchMain {
     System.out.print((char) 27 + "[0m");
   }
 
-  private void saveResultsToDB(double avgSpeed, double avgLatency){
+  private void saveResultsToDB(double avgSpeed, double avgLatency) {
     Session session = sf.getSession();
     session.currentTransaction().begin();
     Results row = session.newInstance(Results.class);
@@ -276,7 +288,7 @@ public class MicroBenchMain {
     row.setLatency(avgLatency);
     row.setRun(runNumber);
     row.setBatchSize(rowsPerTx);
-    row.setUpdateData(updateData?1:0);
+    row.setUpdateData(updateData ? 1 : 0);
     session.makePersistent(row);
     session.currentTransaction().commit();
   }

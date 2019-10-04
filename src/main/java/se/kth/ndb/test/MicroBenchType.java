@@ -7,7 +7,8 @@ public enum MicroBenchType {
   BATCH_ND ("BATCH_ND"),
   PPIS("PPIS"),
   IS("IS"),
-  FTS("FTS");
+  FTS("FTS"),
+  RANGE_SCAN("RANGE_SCAN");
   private final String name;
   private MicroBenchType(String name){
     this.name = name;

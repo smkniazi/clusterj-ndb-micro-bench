@@ -27,13 +27,16 @@ public class Worker implements Callable {
   Random rand = new Random(System.nanoTime());
   int counter = 0;
   long bmStartTime = 0;
+  final int rsMaxID;
+  final int rsSize;
 
   final List<Set<Row>> dataSet = new ArrayList<Set<Row>>();
 
   public Worker(AtomicInteger successfulOps, AtomicInteger failedOps,
                 long maxOperationsToPerform, MicroBenchType benchmarkDuration, SessionFactory sf,
                 int rowsPerTx, boolean distributedPKOps, LockMode lockMode,
-                SynchronizedDescriptiveStatistics lagency, boolean updateRows) {
+                SynchronizedDescriptiveStatistics lagency, boolean updateRows,
+                final int rsMaxID, final int rsSize) {
     this.successfulOps = successfulOps;
     this.failedOps = failedOps;
     this.benchMarkDuration = maxOperationsToPerform;
@@ -44,6 +47,8 @@ public class Worker implements Callable {
     this.lockMode = lockMode;
     this.latency = lagency;
     this.updateRows = updateRows;
+    this.rsMaxID = rsMaxID;
+    this.rsSize = rsSize;
   }
 
   @Override
@@ -57,10 +62,10 @@ public class Worker implements Callable {
         dbSession.currentTransaction().begin();
         performOperation(dbSession);
         dbSession.currentTransaction().commit();
-        long opExeTime=(System.nanoTime()-startTime);
+        long opExeTime = (System.nanoTime() - startTime);
         latency.addValue(opExeTime);
         successfulOps.incrementAndGet();
-        printSpeed(bmStartTime,successfulOps);
+        printSpeed(bmStartTime, successfulOps);
       } catch (Throwable e) {
         failedOps.incrementAndGet();
         e.printStackTrace();
@@ -98,15 +103,18 @@ public class Worker implements Callable {
       case FTS:
         ftsTest(session);
         return;
+      case RANGE_SCAN:
+        rsTest(session);
+        return;
       default:
         throw new IllegalStateException("Micro bench mark not supported");
     }
   }
 
-  void pkTest(Session session){
+  void pkTest(Session session) {
     List<Table> readRows = pkRead(session);
-    if(updateRows){
-      for(Table row : readRows){
+    if (updateRows) {
+      for (Table row : readRows) {
         row.setData1(counter++);
         row.setData2(counter++);
       }
@@ -119,7 +127,7 @@ public class Worker implements Callable {
     ArrayList<Table> readRows = new ArrayList<Table>();
     boolean partitionKeyHintSet = false;
     int index = rand.nextInt(dataSet.size());
-    Set<Row> set  = dataSet.get(index);
+    Set<Row> set = dataSet.get(index);
 
     for (Row row : set) {
       Object key[] = new Object[2];
@@ -132,7 +140,7 @@ public class Worker implements Callable {
       }
       session.setLockMode(lockMode);
       Table dbRow = session.find(Table.class, key);
-      if(dbRow == null){
+      if (dbRow == null) {
         throw new IllegalStateException("Read null");
       }
       readRows.add(dbRow);
@@ -140,10 +148,10 @@ public class Worker implements Callable {
     return readRows;
   }
 
-  void batchTest(Session session){
+  void batchTest(Session session) {
     List<Table> readRows = batchRead(session);
-    if(updateRows){
-      for(Table row : readRows){
+    if (updateRows) {
+      for (Table row : readRows) {
         row.setData1(counter++);
         row.setData2(counter++);
       }
@@ -154,7 +162,7 @@ public class Worker implements Callable {
 
   List<Table> batchRead(Session session) {
     int index = rand.nextInt(dataSet.size());
-    Set<Row> set  = dataSet.get(index);
+    Set<Row> set = dataSet.get(index);
 
     List<Table> batch = new ArrayList<Table>();
     for (Row row : set) {
@@ -167,7 +175,7 @@ public class Worker implements Callable {
     }
 
     Object key[] = new Object[2];
-    Table row = (Table)batch.get(0);
+    Table row = (Table) batch.get(0);
     key[0] = row.getPartitionId();
     key[1] = row.getId();
     session.setPartitionKey(Table.class, key);
@@ -177,19 +185,19 @@ public class Worker implements Callable {
     session.load(batch);
     session.flush();
 
-    for(Object obj : batch){
+    for (Object obj : batch) {
       row = (Table) obj;
-      if(row.getData1() == -1 || row.getData2() == -1 ){
+      if (row.getData1() == -1 || row.getData2() == -1) {
         throw new IllegalStateException("Wrong data read");
       }
     }
-    return  batch;
+    return batch;
   }
 
-  void ppisTest(Session session){
+  void ppisTest(Session session) {
     List<Table> readRows = ppisRead(session);
-    if(updateRows){
-      for(Table row : readRows){
+    if (updateRows) {
+      for (Table row : readRows) {
         row.setData1(counter++);
         row.setData2(counter++);
       }
@@ -200,7 +208,7 @@ public class Worker implements Callable {
 
   List<Table> ppisRead(Session session) {
     int index = rand.nextInt(dataSet.size());
-    Set<Row> set  = dataSet.get(index);
+    Set<Row> set = dataSet.get(index);
 
     Iterator<Row> itr = set.iterator();
     Row firstElement = itr.next();
@@ -212,7 +220,7 @@ public class Worker implements Callable {
     qdty.where(pred1);
 
     Query<Table> query = session.createQuery(qdty);
-    query.setParameter("partitionIdParam", partitionKey );
+    query.setParameter("partitionIdParam", partitionKey);
 
     Object key[] = new Object[2];
     key[0] = partitionKey;
@@ -220,17 +228,17 @@ public class Worker implements Callable {
     session.setPartitionKey(Table.class, key);
     session.setLockMode(lockMode);
     List<Table> lists = query.getResultList();
-    if(lists.size() != rowsPerTx){
-      throw new IllegalStateException("Wrong number of rows read. Expecting: "+rowsPerTx+" Got: "+ lists.size());
+    if (lists.size() != rowsPerTx) {
+      throw new IllegalStateException("Wrong number of rows read. Expecting: " + rowsPerTx + " Got: " + lists.size());
     }
 
     return lists;
   }
 
-  void isTest(Session session){
+  void isTest(Session session) {
     List<Table> readRows = isRead(session);
-    if(updateRows){
-      for(Table row : readRows){
+    if (updateRows) {
+      for (Table row : readRows) {
         row.setData2(counter++);
       }
       session.updatePersistentAll(readRows);
@@ -240,7 +248,7 @@ public class Worker implements Callable {
 
   List<Table> isRead(Session session) {
     int index = rand.nextInt(dataSet.size());
-    Set<Row> set  = dataSet.get(index);
+    Set<Row> set = dataSet.get(index);
 
     Iterator<Row> itr = set.iterator();
     Row firstElement = itr.next();
@@ -256,16 +264,45 @@ public class Worker implements Callable {
 
     session.setLockMode(lockMode);
     List<Table> lists = query.getResultList();
-    if(lists.size() != rowsPerTx){
+    if (lists.size() != rowsPerTx) {
       throw new IllegalStateException("Wrong number of rows read");
     }
     return lists;
   }
 
-  void ftsTest(Session session){
+  void rsTest(Session session) {
+    List<Table> readRows = rsRead(session);
+    if (updateRows) {
+      throw new UnsupportedOperationException("update rows is not supported");
+    }
+  }
+
+  List<Table> rsRead(Session session) {
+    int startIndex = rand.nextInt(rsMaxID - rsSize);
+
+    QueryBuilder qb = session.getQueryBuilder();
+    QueryDomainType<Table> qdty = qb.createQueryDefinition(Table.class);
+    Predicate pred1 = qdty.get("id").greaterEqual(qdty.param("idParam1"));
+    Predicate pred2 = qdty.get("id").lessThan(qdty.param("idParam2"));
+    qdty.where(pred1.and(pred2));
+
+    Query<Table> query = session.createQuery(qdty);
+    query.setParameter("idParam1", startIndex);
+    query.setParameter("idParam2", startIndex + rsSize);
+
+    session.setLockMode(lockMode);
+    List<Table> lists = query.getResultList();
+    if (lists.size() != rsSize) {
+      throw new IllegalStateException("Wrong number of rows read. Expected: "+rsSize+" Got: "+lists.size());
+    }
+
+    return lists;
+  }
+
+  void ftsTest(Session session) {
     List<Table> readRows = ftsRead(session);
-    if(updateRows){
-      for(Table row : readRows){
+    if (updateRows) {
+      for (Table row : readRows) {
         row.setData1(counter++);
       }
       session.updatePersistentAll(readRows);
@@ -275,7 +312,7 @@ public class Worker implements Callable {
 
   List<Table> ftsRead(Session session) {
     int index = rand.nextInt(dataSet.size());
-    Set<Row> set  = dataSet.get(index);
+    Set<Row> set = dataSet.get(index);
 
     Iterator<Row> itr = set.iterator();
     Row firstElement = itr.next();
@@ -287,11 +324,11 @@ public class Worker implements Callable {
     qdty.where(pred1);
 
     Query<Table> query = session.createQuery(qdty);
-    query.setParameter("data2Param", partitionKey );
+    query.setParameter("data2Param", partitionKey);
 
     session.setLockMode(lockMode);
     List<Table> lists = query.getResultList();
-    if(lists.size() != rowsPerTx){
+    if (lists.size() != rowsPerTx) {
       throw new IllegalStateException("Wrong number of rows read");
     }
 
@@ -299,9 +336,9 @@ public class Worker implements Callable {
   }
 
 
-  protected void saveSet(Session session, Set<Row> rows){
+  protected void saveSet(Session session, Set<Row> rows) {
     session.currentTransaction().begin();
-    for(Row row : rows){
+    for (Row row : rows) {
       Table dbRow = getTableInstance(session);
       dbRow.setId(row.getId());
       dbRow.setPartitionId(row.getPratitionKey());
@@ -315,14 +352,14 @@ public class Worker implements Callable {
   protected void writeData() throws Exception {
     Session session = sf.getSession();
 
-    for ( int i = 0; i < 32*10;){
+    for (int i = 0; i < 32 * 10; ) {
       int partitionKey = rand.nextInt();
 
       Set<Row> rows = new HashSet<Row>();
-      for(int j = 0; j < rowsPerTx; j++) {
+      for (int j = 0; j < rowsPerTx; j++) {
         int id = rand.nextInt();
-        Row row  = null;
-        if(microBenchType == MicroBenchType.PK_D || microBenchType == MicroBenchType.BATCH_D){
+        Row row = null;
+        if (microBenchType == MicroBenchType.PK_D || microBenchType == MicroBenchType.BATCH_D) {
           row = new Row(id, id, partitionKey, partitionKey);
         } else {
           row = new Row(partitionKey, id, partitionKey, partitionKey);
@@ -332,8 +369,8 @@ public class Worker implements Callable {
 
       try {
         saveSet(session, rows);
-      } catch (Exception e){
-          e.printStackTrace();
+      } catch (Exception e) {
+        e.printStackTrace();
 //          System.exit(0);
         continue;
       }
@@ -346,26 +383,27 @@ public class Worker implements Callable {
   }
 
   private Table getTableInstance(Session session) {
-      return session.newInstance(Table.class);
+    return session.newInstance(Table.class);
   }
 
-  private void release(Session session, List<Table> rows){
-    for(Table row: rows){
+  private void release(Session session, List<Table> rows) {
+    for (Table row : rows) {
       release(session, row);
     }
   }
 
-  private void release(Session session, Table row){
+  private void release(Session session, Table row) {
     session.release(row);
   }
 
   static long lastPrintTime = System.currentTimeMillis();
-  private synchronized  static void printSpeed(long startTime, AtomicInteger successfulOps) {
+
+  private synchronized static void printSpeed(long startTime, AtomicInteger successfulOps) {
     long curTime = System.currentTimeMillis();
     if ((curTime - lastPrintTime) > 5000) {
       long timeElapsed = (System.currentTimeMillis() - startTime);
-      double speed = (successfulOps.get()/(double)timeElapsed)*1000;
-      System.out.println("Successful Ops: " + successfulOps +"\tSpeed: " + speed + " ops/sec.");
+      double speed = (successfulOps.get() / (double) timeElapsed) * 1000;
+      System.out.println("Successful Ops: " + successfulOps + "\tSpeed: " + speed + " ops/sec.");
       lastPrintTime = System.currentTimeMillis();
     }
   }
