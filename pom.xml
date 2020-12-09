@@ -47,7 +47,7 @@
     <dependency>
       <groupId>com.mysql.ndb</groupId>
       <artifactId>clusterj-hops-fix</artifactId>
-      <version>7.6.11</version>
+      <version>8.0.21</version>
     </dependency>
 
     </dependencies>
@@ -93,7 +93,7 @@
     <repository>
       <id>Hops</id>
       <name>Hops Repo</name>
-      <url>https://bbc1.sics.se/archiva/repository/Hops/</url>
+      <url>https://archiva.hops.works/repository/Hops/</url>
       <releases>
         <enabled>true</enabled>
       </releases>
