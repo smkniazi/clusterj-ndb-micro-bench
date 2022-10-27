@@ -1,4 +1,5 @@
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>se.kth</groupId>
@@ -7,12 +8,14 @@
     <packaging>jar</packaging>
 
 
-    <name>clusterj-ndb-micro-bench</name>
-    <url>http://maven.apache.org</url>
+    <name>clusterj-tests</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <javaassist.version>3.27.0-GA</javaassist.version>
+        <clusterj.version>21.04.9</clusterj.version>
     </properties>
+
     <dependencies>
         <dependency>
             <groupId>log4j</groupId>
@@ -43,12 +46,49 @@
             <artifactId>args4j</artifactId>
             <version>2.0.29</version>
         </dependency>
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+            <version>1.2</version>
+        </dependency>
 
-    <dependency>
-      <groupId>com.mysql.ndb</groupId>
-      <artifactId>clusterj-hops-fix</artifactId>
-      <version>8.0.22</version>
-    </dependency>
+        <dependency>
+            <groupId>org.javassist</groupId>
+            <artifactId>javassist</artifactId>
+            <version>${javaassist.version}</version>
+        </dependency>
+
+         <dependency>
+             <groupId>com.mysql.clusterj</groupId>
+             <artifactId>clusterj-api</artifactId>
+             <version>${clusterj.version}</version>
+         </dependency>
+         <dependency>
+             <groupId>com.mysql.clusterj</groupId>
+             <artifactId>clusterj-tie</artifactId>
+             <version>${clusterj.version}</version>
+         </dependency>
+         <dependency>
+             <groupId>com.mysql.clusterj</groupId>
+             <artifactId>clusterj-core</artifactId>
+             <version>${clusterj.version}</version>
+         </dependency>
+         <dependency>
+             <groupId>com.mysql.clusterj</groupId>
+             <artifactId>clusterj-test</artifactId>
+             <version>${clusterj.version}</version>
+         </dependency>
+         <dependency>
+             <groupId>com.mysql.clusterj</groupId>
+             <artifactId>clusterj-unit</artifactId>
+             <version>${clusterj.version}</version>
+         </dependency>
+
+<!--       <dependency>-->
+<!--         <groupId>com.mysql.ndb</groupId>-->
+<!--         <artifactId>clusterj-rondb</artifactId>-->
+<!--         <version>${clusterj.version}</version>-->
+<!--       </dependency>-->
 
     </dependencies>
     <build>
@@ -62,7 +102,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>se.kth.ndb.test.Main</mainClass>
+                            <mainClass>com.lc.test.TestCloudOperations</mainClass>
                         </manifest>
                     </archive>
 
@@ -82,24 +122,24 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>8</source>
+                    <target>8</target>
                 </configuration>
             </plugin>
         </plugins>
     </build>
 
     <repositories>
-    <repository>
-      <id>Hops</id>
-      <name>Hops Repo</name>
-      <url>https://archiva.hops.works/repository/Hops/</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
+        <repository>
+            <id>Hops</id>
+            <name>Hops Repo</name>
+            <url>https://archiva.hops.works/repository/Hops/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
     </repositories>
 </project>
