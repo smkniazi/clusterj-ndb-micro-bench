@@ -68,6 +68,8 @@ public class UnloadSchemaAfterDeleteTest {
     }
   }
 
+  // Testing RONDB-195
+  // https://hopsworks.atlassian.net/browse/RONDB-195
   public void test() throws Exception {
     setupMySQLConnection();
     setUpRonDBConnection();
