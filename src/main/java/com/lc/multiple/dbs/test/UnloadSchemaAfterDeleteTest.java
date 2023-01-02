@@ -1,6 +1,9 @@
 package com.lc.multiple.dbs.test;
 
 import com.mysql.clusterj.*;
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtMethod;
 import testsuite.clusterj.AbstractClusterJModelTest;
 
 import java.sql.Connection;
@@ -54,6 +57,19 @@ public class UnloadSchemaAfterDeleteTest {
     }
   }
 
+  public Class<?> generateClass(String featureGroupId, String tableName) throws Exception {
+    ClassPool pool = ClassPool.getDefault();
+    CtClass originalClass = pool.get("com.lc.multiple.dbs.test.BaseOnlineFeatureGroup");
+    originalClass.defrost();
+    originalClass.setName(featureGroupId);
+
+    String methodCode = "public String table() { return \"" + tableName + "\"; }";
+    CtMethod tableMethod = CtMethod.make(methodCode, originalClass);
+    originalClass.addMethod(tableMethod);
+
+    return originalClass.toClass();
+  }
+
   public void runSQLCMD(AbstractClusterJModelTest test, String cmd) {
     PreparedStatement preparedStatement = null;
 
@@ -79,7 +95,8 @@ public class UnloadSchemaAfterDeleteTest {
 
     // write something
     Session session = getSession(DEFAULT_DB);
-    DynamicObject e = session.newInstance(FGTest.class);
+    Class<?> classVersion1 = generateClass("1", TABLE);
+    DynamicObject e = (DynamicObject) session.newInstance(classVersion1);
     setFields(null, e, 0); //TODO; replace null with "this"
     session.savePersistent(e);
     closeDTO(session, e, FGTest.class);
@@ -91,12 +108,14 @@ public class UnloadSchemaAfterDeleteTest {
 
     // unload schema
     session = getSession(DEFAULT_DB);
-    session.unloadSchema(FGTest.class);
+    Class<?> classVersion2 = generateClass("2", TABLE);
+    session.unloadSchema(classVersion2); // this is not enough to unload the schema
+    session.unloadSchema(classVersion1); // you have to use older version to unload schema
     returnSession(session);
 
     // write something to the new table
     session = getSession(DEFAULT_DB);
-    e = session.newInstance(FGTest.class);
+    e = (DynamicObject) session.newInstance(classVersion2);
     setFields(null, e, 0); //TODO; replace null with "this"
     session.savePersistent(e);
     closeDTO(session, e, FGTest.class);
