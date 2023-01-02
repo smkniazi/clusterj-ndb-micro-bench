@@ -7,8 +7,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 public class UnloadSchemaAfterDeleteTest {
@@ -16,17 +14,14 @@ public class UnloadSchemaAfterDeleteTest {
   private static final String TABLE = "fgtest";
   private static String DROP_TABLE_CMD = "drop table if exists " + TABLE;
 
-  private static String CREATE_TABLE_CMD1 = "CREATE TABLE " + TABLE + " ( id int NOT NULL, col_1 " +
-          "int DEFAULT NULL, col_2 varchar(1000) COLLATE utf8_unicode_ci DEFAULT NULL, PRIMARY " +
-          "KEY (id))";
+  private static String CREATE_TABLE_CMD1 = "CREATE TABLE " + TABLE + " ( id int NOT NULL," +
+          " number  int DEFAULT NULL, PRIMARY KEY (id))";
 
   // table with same name a above but different columns
-  private static String CREATE_TABLE_CMD2 = "CREATE TABLE " + TABLE + " ( id int NOT NULL, col_1 " +
-          "varchar(1000) COLLATE utf8_unicode_ci DEFAULT NULL, col_2 int DEFAULT NULL, PRIMARY " +
-          "KEY (id))";
+  private static String CREATE_TABLE_CMD2 = "CREATE TABLE " + TABLE + " ( id int NOT NULL," +
+          " name varchar(1000) COLLATE utf8_unicode_ci DEFAULT NULL, PRIMARY KEY (id))";
 
-  private static String defaultDB = "test";
-  boolean useCache = true;
+  boolean useCache = false;
 
   Session getSession(String db) {
     if (db == null) {
@@ -75,14 +70,14 @@ public class UnloadSchemaAfterDeleteTest {
 
   public void test() throws Exception {
     setupMySQLConnection();
+    setUpRonDBConnection();
+
     runSQLCMD(null, DROP_TABLE_CMD); // TODO: replace null
     runSQLCMD(null, CREATE_TABLE_CMD1); //TODO: replace null
 
-    setUpRonDBConnection();
-
     // write something
     Session session = getSession(DEFAULT_DB);
-    DynamicObject e = (DynamicObject) session.newInstance(FGTest.class);
+    DynamicObject e = session.newInstance(FGTest.class);
     setFields(null, e, 0); //TODO; replace null with "this"
     session.savePersistent(e);
     closeDTO(session, e, FGTest.class);
@@ -90,16 +85,16 @@ public class UnloadSchemaAfterDeleteTest {
 
     // delete the table and create a new table with the same name
     runSQLCMD(null, DROP_TABLE_CMD); // TODO: replace null
-    runSQLCMD(null, CREATE_TABLE_CMD1); //TODO: replace null
+    runSQLCMD(null, CREATE_TABLE_CMD2); //TODO: replace null
 
     // unload schema
     session = getSession(DEFAULT_DB);
     session.unloadSchema(FGTest.class);
     returnSession(session);
 
-    // write something
+    // write something to the new table
     session = getSession(DEFAULT_DB);
-    e = (DynamicObject) session.newInstance(FGTest.class);
+    e = session.newInstance(FGTest.class);
     setFields(null, e, 0); //TODO; replace null with "this"
     session.savePersistent(e);
     closeDTO(session, e, FGTest.class);
@@ -113,11 +108,14 @@ public class UnloadSchemaAfterDeleteTest {
       String fieldName = e.columnMetadata()[i].name();
       if (fieldName.equals("id")) {
         e.set(i, num);
-        return;
+      } else if (fieldName.equals("name")) {
+        e.set(i, Integer.toString(num));
+      } else if (fieldName.equals("number")) {
+        e.set(i, num);
       } else {
         // TODO uncomment the following file
         //test.error("Unexpected Column");
-        System.out.println("Unexpected Column");
+        System.out.println("Unexpected Column " + fieldName);
       }
     }
   }
