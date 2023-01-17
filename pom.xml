@@ -13,7 +13,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javaassist.version>3.27.0-GA</javaassist.version>
-        <clusterj.version>21.04.9</clusterj.version>
+        <clusterj.version>21.04.10</clusterj.version>
     </properties>
 
     <dependencies>

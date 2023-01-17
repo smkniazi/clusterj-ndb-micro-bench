@@ -1,9 +1,6 @@
 package com.lc.multiple.dbs.test;
 
 import com.mysql.clusterj.*;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.CtMethod;
 import testsuite.clusterj.AbstractClusterJModelTest;
 
 import java.sql.Connection;
@@ -12,19 +9,30 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Properties;
 
-public class UnloadSchemaAfterDeleteTest {
+/*
+When a table is deleted and recreated with different schema then we need to unload
+the schema otherwise we will get schema version mismatch errors. However, the
+SessionFactoryImpl.typeToHandlerMap uses Class as keys. The Dynamic class that will represent the
+new table will not match with any key in SessionFactoryImpl.typeToHandlerMap and unloadSchema
+will not do anything.
+
+We have changed unloadSchema such that if class is not found in SessionFactoryImpl.typeToHandlerMap
+then we iterate over the keys in the SessionFactoryImpl.typeToHandlersMap and check if the table
+name matches with the user supplied class. If a match is found then we unload that table and
+return.
+ */
+public class UnloadSchemaAfterDeleteWithCacheTest {
 
   private static final String TABLE = "fgtest";
   private static String DROP_TABLE_CMD = "drop table if exists " + TABLE;
 
   private static String CREATE_TABLE_CMD1 = "CREATE TABLE " + TABLE + " ( id int NOT NULL," +
-          " number  int DEFAULT NULL, PRIMARY KEY (id))";
+          " number1  int DEFAULT NULL,  number2  int DEFAULT NULL, PRIMARY KEY (id))";
 
   // table with same name a above but different columns
   private static String CREATE_TABLE_CMD2 = "CREATE TABLE " + TABLE + " ( id int NOT NULL," +
-          " name varchar(1000) COLLATE utf8_unicode_ci DEFAULT NULL, PRIMARY KEY (id))";
+          " number1  int DEFAULT NULL, PRIMARY KEY (id))";
 
-  boolean useCache = false;
 
   Session getSession(String db) {
     if (db == null) {
@@ -35,39 +43,25 @@ public class UnloadSchemaAfterDeleteTest {
   }
 
   void returnSession(Session s) {
-    if (useCache) {
-      s.closeCache();
-    } else {
-      s.close();
-    }
+    s.closeCache();
   }
 
   void closeDTO(Session s, DynamicObject dto, Class dtoClass) {
-    if (useCache) {
-      s.releaseCache(dto, dtoClass);
-    } else {
-      s.release(dto);
-    }
+    s.releaseCache(dto, dtoClass);
   }
 
-  public static class FGTest extends DynamicObject {
+  public static class FGTest1 extends DynamicObject {
     @Override
     public String table() {
       return TABLE;
     }
   }
 
-  public Class<?> generateClass(String featureGroupId, String tableName) throws Exception {
-    ClassPool pool = ClassPool.getDefault();
-    CtClass originalClass = pool.get("com.lc.multiple.dbs.test.BaseOnlineFeatureGroup");
-    originalClass.defrost();
-    originalClass.setName(featureGroupId);
-
-    String methodCode = "public String table() { return \"" + tableName + "\"; }";
-    CtMethod tableMethod = CtMethod.make(methodCode, originalClass);
-    originalClass.addMethod(tableMethod);
-
-    return originalClass.toClass();
+  public static class FGTest2 extends DynamicObject {
+    @Override
+    public String table() {
+      return TABLE;
+    }
   }
 
   public void runSQLCMD(AbstractClusterJModelTest test, String cmd) {
@@ -84,8 +78,6 @@ public class UnloadSchemaAfterDeleteTest {
     }
   }
 
-  // Testing RONDB-195
-  // https://hopsworks.atlassian.net/browse/RONDB-195
   public void test() throws Exception {
     setupMySQLConnection();
     setUpRonDBConnection();
@@ -94,13 +86,18 @@ public class UnloadSchemaAfterDeleteTest {
     runSQLCMD(null, CREATE_TABLE_CMD1); //TODO: replace null
 
     // write something
-    Session session = getSession(DEFAULT_DB);
-    Class<?> classVersion1 = generateClass("1", TABLE);
-    DynamicObject e = (DynamicObject) session.newInstance(classVersion1);
-    setFields(null, e, 0); //TODO; replace null with "this"
-    session.savePersistent(e);
-    closeDTO(session, e, FGTest.class);
-    returnSession(session);
+    int tries = 10;
+    Session session;
+    DynamicObject dto;
+    for (int i = 0; i < tries; i++) {
+      session = getSession(DEFAULT_DB);
+      dto = (DynamicObject) session.newInstance(FGTest1.class);
+      setFields(null, dto, i); //TODO; replace null with "this"
+      session.savePersistent(dto);
+      closeDTO(session, dto, FGTest1.class);
+      returnSession(session);
+
+    }
 
     // delete the table and create a new table with the same name
     runSQLCMD(null, DROP_TABLE_CMD); // TODO: replace null
@@ -108,18 +105,18 @@ public class UnloadSchemaAfterDeleteTest {
 
     // unload schema
     session = getSession(DEFAULT_DB);
-    Class<?> classVersion2 = generateClass("2", TABLE);
-    session.unloadSchema(classVersion2); // this is not enough to unload the schema
-    session.unloadSchema(classVersion1); // you have to use older version to unload schema
+    session.unloadSchema(FGTest2.class); // unload the schema using new dynamic class
     returnSession(session);
 
     // write something to the new table
-    session = getSession(DEFAULT_DB);
-    e = (DynamicObject) session.newInstance(classVersion2);
-    setFields(null, e, 0); //TODO; replace null with "this"
-    session.savePersistent(e);
-    closeDTO(session, e, FGTest.class);
-    returnSession(session);
+    for (int i = 0; i < tries; i++) {
+      session = getSession(DEFAULT_DB);
+      dto = (DynamicObject) session.newInstance(FGTest2.class);
+      setFields(null, dto, i); //TODO; replace null with "this"
+      session.savePersistent(dto);
+      closeDTO(session, dto, FGTest2.class);
+      returnSession(session);
+    }
 
     System.out.println("PASS");
   }
@@ -129,9 +126,9 @@ public class UnloadSchemaAfterDeleteTest {
       String fieldName = e.columnMetadata()[i].name();
       if (fieldName.equals("id")) {
         e.set(i, num);
-      } else if (fieldName.equals("name")) {
+      } else if (fieldName.startsWith("name")) {
         e.set(i, Integer.toString(num));
-      } else if (fieldName.equals("number")) {
+      } else if (fieldName.startsWith("number")) {
         e.set(i, num);
       } else {
         // TODO uncomment the following file
@@ -143,7 +140,7 @@ public class UnloadSchemaAfterDeleteTest {
 // --------------------------------------------------
 
   public static void main(String argv[]) throws Exception {
-    UnloadSchemaAfterDeleteTest test = new UnloadSchemaAfterDeleteTest();
+    UnloadSchemaAfterDeleteWithCacheTest test = new UnloadSchemaAfterDeleteWithCacheTest();
     test.test();
   }
 
@@ -163,8 +160,8 @@ public class UnloadSchemaAfterDeleteTest {
     props.setProperty("com.mysql.clusterj.connect.timeout.after", "5");
     props.setProperty("com.mysql.clusterj.max.transactions", "1024");
     props.setProperty("com.mysql.clusterj.connection.pool.size", "1");
-    props.setProperty("com.mysql.clusterj.max.cached.instances", "1024");
-    props.setProperty("com.mysql.clusterj.max.cached.sessions", "20");
+    props.setProperty("com.mysql.clusterj.max.cached.instances", "1");
+    props.setProperty("com.mysql.clusterj.max.cached.sessions", "1");
     props.setProperty("com.mysql.clusterj.connection.reconnect.timeout", "5");
 
     try {
