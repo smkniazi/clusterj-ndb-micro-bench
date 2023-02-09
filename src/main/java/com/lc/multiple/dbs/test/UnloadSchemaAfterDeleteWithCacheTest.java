@@ -8,6 +8,11 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /*
 Fixes for recreating a table with the same name while using session cache.
@@ -35,13 +40,20 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     }
   }
 
-  void returnSession(Session s) {
-//    s.closeCache();
-    s.close();
+  void returnSession(Session s, boolean useCache) {
+    if (useCache) {
+      s.closeCache();
+    } else {
+      s.close();
+    }
   }
 
-  void closeDTO(Session s, DynamicObject dto, Class dtoClass) {
-    s.releaseCache(dto, dtoClass);
+  void closeDTO(Session s, DynamicObject dto, Class dtoClass, boolean useCache) {
+    if (useCache) {
+      s.releaseCache(dto, dtoClass);
+    } else {
+      s.release(dto);
+    }
   }
 
   public static class FGTest1 extends DynamicObject {
@@ -73,6 +85,7 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
   }
 
   public void test() throws Exception {
+    boolean useCache = true;
     setupMySQLConnection();
     setUpRonDBConnection();
 
@@ -87,8 +100,8 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     dto = (DynamicObject) session.newInstance(FGTest1.class);
     setFields(null, dto, 0); //TODO; replace null with "this"
     session.savePersistent(dto);
-    closeDTO(session, dto, FGTest1.class);
-    returnSession(session);
+    closeDTO(session, dto, FGTest1.class, useCache);
+    returnSession(session, useCache);
 
     // delete the table and create a new table with the same name
     runSQLCMD(null, DROP_TABLE_CMD); // TODO: replace null
@@ -100,26 +113,27 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     System.out.println("Session 1: " + session1 + " session2: " + session);
 
     session.unloadSchema(FGTest2.class); // unload the schema using new dynamic class
-    returnSession(session);
+    returnSession(session, useCache);
 
     // write something to the new table
     dto = (DynamicObject) session.newInstance(FGTest2.class);
     setFields(null, dto, 0); //TODO; replace null with "this"
     session.savePersistent(dto);
-    closeDTO(session, dto, FGTest2.class);
-    returnSession(session);
+    closeDTO(session, dto, FGTest2.class, useCache);
+    returnSession(session, useCache);
 
     System.out.println("PASS");
   }
 
   public void testFromRalf() throws Exception {
+    boolean useCache = true;
     setupMySQLConnection();
     setUpRonDBConnection();
 
     runSQLCMD(null, DROP_TABLE_CMD);
     runSQLCMD(null, CREATE_TABLE_CMD2);
 
-    DEFAULT_DB = null; // or "test", both should work
+    DEFAULT_DB = "test"; // or "test", both should work
     // -------------------------------------------------------------------------
     // write something
     Session session = getSession(DEFAULT_DB);
@@ -129,7 +143,7 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     DynamicObject dto = (DynamicObject) session.newInstance(cls1);
     setFields(null, dto, 0);
     session.savePersistent(dto);
-    closeDTO(session, dto, cls1);
+    closeDTO(session, dto, cls1, useCache);
 
     DynamicObject dto1 = (DynamicObject) session1.newInstance(cls1);
     setFields(null, dto1, 0);
@@ -153,11 +167,10 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     session = getSession(DEFAULT_DB); //use for unload
     session1 = getSession(DEFAULT_DB); //use for insert
 
-    dto = (DynamicObject) session.newInstance(cls1);
+    dto = (DynamicObject) session1.newInstance(cls1);
     setFields(null, dto, 0);
 
     session.unloadSchema(FGTest1.class);
-    session.closeCache();
 
     try {
       session1.savePersistent(dto);
@@ -166,9 +179,11 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     } catch (ClusterJException e) {
       System.out.println("It was expected : " + e);
     }
-    closeDTO(session, dto, cls1);
+    session1.releaseCache(dto, cls1);
+
     // returning bad session to the cache. But I will recommend to close it
-    session.releaseCache(dto, cls1);
+    session.closeCache();
+    session1.closeCache();
 
     // -------------------------------------------------------------------------
     // by this time there are two sessions in the cache
@@ -177,19 +192,17 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     session1 = getSession(DEFAULT_DB);
 
     // write something
-    // Class cls2 = FGTest1.class;  // this will fail as you will get cached instances for older schema
-    Class cls2 = FGTest2.class;
+    Class cls2 = FGTest1.class;  // this will fail as you will get cached instances for older schema
+//    Class cls2 = FGTest2.class;
     dto = (DynamicObject) session.newInstance(cls2);
     setFields(null, dto, 0);
     session.savePersistent(dto);
-    closeDTO(session, dto, cls2);
     session.releaseCache(dto, cls2);
 
     dto1 = (DynamicObject) session1.newInstance(cls2);
     setFields(null, dto1, 0);
     session1.savePersistent(dto1);
     session1.releaseCache(dto1, cls2);
-
 
     session.closeCache();
     session1.closeCache();
@@ -198,6 +211,7 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
   }
 
   public void test2() throws Exception {
+    boolean useCache = true;
     setupMySQLConnection();
     setUpRonDBConnection();
 
@@ -212,8 +226,8 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     dto = (DynamicObject) session1.newInstance(FGTest1.class);
     setFields(null, dto, 0); //TODO; replace null with "this"
     session1.savePersistent(dto);
-    closeDTO(session1, dto, FGTest1.class);
-    returnSession(session1);
+    closeDTO(session1, dto, FGTest1.class, useCache);
+    returnSession(session1, useCache);
 
     // delete the table and create a new table with the same name
     runSQLCMD(null, DROP_TABLE_CMD); // TODO: replace null
@@ -227,10 +241,10 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     // unload schema
     session1 = getSession(DEFAULT_DB);
     session1.unloadSchema(FGTest2.class); // unload the schema using new dynamic class
-    returnSession(session1);
+    returnSession(session1, useCache);
 
     session2.savePersistent(dto);
-    closeDTO(session2, dto, FGTest2.class);
+    closeDTO(session2, dto, FGTest2.class, useCache);
 
     try {
       session2.currentTransaction().commit();
@@ -238,7 +252,7 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
       return;
     } catch (Exception e) {
       System.out.println("Got exception as expected: " + e);
-      returnSession(session2);
+      returnSession(session2, useCache);
     }
 
     // at this time there will be two session objects in the cache. test both session objects
@@ -248,19 +262,20 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     dto = (DynamicObject) session1.newInstance(FGTest2.class);
     setFields(null, dto, 100); //TODO; replace null with "this"
     session1.savePersistent(dto);
-    closeDTO(session1, dto, FGTest1.class);
+    closeDTO(session1, dto, FGTest1.class, useCache);
     //session 2
     dto = (DynamicObject) session2.newInstance(FGTest2.class);
     setFields(null, dto, 100); //TODO; replace null with "this"
     session2.savePersistent(dto);
-    closeDTO(session2, dto, FGTest1.class);
-    returnSession(session1);
-    returnSession(session2);
+    closeDTO(session2, dto, FGTest1.class, useCache);
+    returnSession(session1, useCache);
+    returnSession(session2, useCache);
 
     System.out.println("PASS");
   }
 
   public void test3() throws Exception {
+    boolean useCache = true;
     setupMySQLConnection();
     setUpRonDBConnection();
 
@@ -275,8 +290,8 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     dto = (DynamicObject) session.newInstance(FGTest1.class);
     setFields(null, dto, 0); //TODO; replace null with "this"
     session.savePersistent(dto);
-    closeDTO(session, dto, FGTest1.class);
-    returnSession(session);
+    closeDTO(session, dto, FGTest1.class, useCache);
+    returnSession(session, useCache);
 
     // delete the table and create a new table with the same name
     runSQLCMD(null, DROP_TABLE_CMD); // TODO: replace null
@@ -290,18 +305,127 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
     // unload schema
     session = getSession(DEFAULT_DB);
     session.unloadSchema(FGTest2.class); // unload the schema using new dynamic class
-    returnSession(session);
+    returnSession(session, useCache);
 
     for (int i = 0; i < dto.columnMetadata().length; i++) {
       System.out.println("Field is " + dto.columnMetadata()[i].name());
     }
     session1.savePersistent(dto);
-    closeDTO(session1, dto, FGTest2.class);
+    closeDTO(session1, dto, FGTest2.class, useCache);
     session1.currentTransaction().commit();
-    returnSession(session1);
+    returnSession(session1, useCache);
 
     System.out.println("PASS");
   }
+
+  class Writer implements Callable {
+    int id = 0;
+    boolean useCache;
+    boolean stopWriting = false;
+    boolean isWriterStopped = false;
+    int failedOps = 0;
+    int successfulOps = 0;
+
+    Writer(int id, boolean useCache) {
+      this.id = id;
+      this.useCache = useCache;
+    }
+
+    public void stopWriting() {
+      this.stopWriting = true;
+    }
+
+    @Override
+    public Object call() throws Exception {
+      try {
+        Random rand = new Random();
+        while (!stopWriting) {
+          Session session = null;
+          try {
+            session = getSession(DEFAULT_DB);
+            DynamicObject dto = session.newInstance(FGTest1.class);
+            setFields(null, dto, rand.nextInt()); //TODO; replace null with "this"
+            session.savePersistent(dto);
+            closeDTO(session, dto, FGTest1.class, useCache);
+            returnSession(session, useCache);
+            Thread.sleep(100);
+            successfulOps++;
+          } catch (ClusterJException e) {
+            failedOps++;
+            if (e.getMessage().contains("Invalid schema") || e.getMessage().contains("No such table existed") || e.getMessage().contains("Table not defined in transaction coordinator")) {
+              System.out.println("Thread ID: " + id + " Write failed due to an exception: " + e.getMessage());
+              session.unloadSchema(FGTest1.class);
+              returnSession(session, false/* discard this session object*/);
+            } else {
+              throw e;
+            }
+          }
+        }
+        return null;
+      } finally {
+        isWriterStopped = true;
+      }
+    }
+
+    boolean isWriterStopped() {
+      return isWriterStopped;
+    }
+  }
+
+  public void testMT() throws Exception {
+    boolean useCache = true;
+    int numWorker = 10;
+    setupMySQLConnection();
+    setUpRonDBConnection();
+
+    final Writer[] writers = new Writer[numWorker];
+    final Future[] futures = new Future[numWorker];
+    ExecutorService es = Executors.newFixedThreadPool(numWorker);
+    for (int i = 0; i < numWorker; i++) {
+      writers[i] = new Writer(i, useCache);
+      futures[i] = es.submit(writers[i]);
+    }
+
+    // write some stuff
+    Thread.sleep(5000);
+
+    runSQLCMD(null, DROP_TABLE_CMD); // TODO: replace null
+    runSQLCMD(null, CREATE_TABLE_CMD2); //TODO: replace null
+
+    // write some more
+    Thread.sleep(5000);
+
+    for (int i = 0; i < numWorker; i++) {
+      writers[i].stopWriting();
+    }
+
+    for (int i = 0; i < numWorker; i++) {
+      while (!writers[i].isWriterStopped()) {
+        Thread.sleep(10);
+      }
+    }
+
+    int totalFailedOps = 0;
+    int totalSuccessfulOps = 0;
+    for (int i = 0; i < numWorker; i++) {
+      totalFailedOps += writers[i].failedOps;
+      totalSuccessfulOps += writers[i].successfulOps;
+    }
+
+    System.out.println("Successful Ops: "+totalSuccessfulOps+" Failed Ops: "+totalFailedOps);
+
+    try {
+      for (Future f : futures) {
+        f.get();
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.out.println("FAIL");
+    }
+
+    System.out.println("PASS");
+  }
+
 
   public void setFields(AbstractClusterJModelTest test, DynamicObject e, int num) {
     for (int i = 0; i < e.columnMetadata().length; i++) {
@@ -323,7 +447,7 @@ public class UnloadSchemaAfterDeleteWithCacheTest {
 
   public static void main(String argv[]) throws Exception {
     UnloadSchemaAfterDeleteWithCacheTest test = new UnloadSchemaAfterDeleteWithCacheTest();
-    test.testFromRalf();
+    test.testMT();
   }
 
   Properties props = null;
